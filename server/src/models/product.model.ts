@@ -1,154 +1,161 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model } from "mongoose";
+import {
+  IAttribute,
+  IPrice,
+  IProduct,
+  IQuantity,
+  IVariant,
+  IVariantOption,
+} from "../types/types";
 
-// Flexible key-value pair for extra product-specific attributes
-export interface IAttribute {
-  key: string;
-  value: string;
-}
-
-export interface IPrice {
-  buying: number;
-  selling: number;
-}
-
-export interface IQuantity {
-  inStock: number;
-  minThreshold: number; // Alert fires when inStock drops to or below this
-  unit: string;         // "pcs", "kg", "liter", "pack", etc.
-}
-
-export type ProductType = "animal" | "food" | "accessory" | "medicine" | "other";
-
-export interface IProduct extends Document {
-  name: string;
-  sku: string;
-  category: Types.ObjectId;
-  type: ProductType;
-  description?: string;
-  images: string[];
-  price: IPrice;
-  quantity: IQuantity;
-  supplier: Types.ObjectId;
-  // Flexible extra fields — add any extra info without schema changes
-  // e.g. [{ key: "brand", value: "Royal Canin" }, { key: "weight", value: "5kg" }]
-  attributes: IAttribute[];
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+/* ─────────────────────────────
+   Sub-Schemas
+───────────────────────────── */
 
 const AttributeSchema = new Schema<IAttribute>(
   {
     key: { type: String, required: true, trim: true },
     value: { type: String, required: true, trim: true },
   },
-  { _id: false } // No need for separate IDs on subdocuments
+  { _id: false }
 );
 
-const ProductSchema = new Schema<IProduct>(
+const VariantOptionSchema = new Schema<IVariantOption>(
   {
-    name: {
-      type: String,
-      required: [true, "Product name is required"],
-      trim: true,
-    },
+    name: { type: String, required: true, trim: true },
+    values: [{ type: String, required: true, trim: true }],
+  },
+  { _id: false }
+);
 
+const ImageSchema = new Schema(
+  {
+    url: { type: String, required: true },
+    public_id: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const PriceSchema = new Schema<IPrice>(
+  {
+    buying: { type: Number, required: true, min: 0 },
+    selling: { type: Number, required: true, min: 0 },
+  },
+  { _id: false }
+);
+
+const QuantitySchema = new Schema<IQuantity>(
+  {
+    inStock: { type: Number, default: 0, min: 0 },
+    minThreshold: { type: Number, default: 5 },
+    unit: { type: String, default: "pcs", trim: true },
+  },
+  { _id: false }
+);
+
+/* ─────────────────────────────
+   Variant Schema
+───────────────────────────── */
+
+const VariantSchema = new Schema<IVariant>(
+  {
     sku: {
       type: String,
-      unique: true,
+      required: true,
       uppercase: true,
       trim: true,
+      unique: true,
     },
-
-    // → Category model (many Products belong to one Category)
-    category: {
-      type: Schema.Types.ObjectId,
-      ref: "Category",
-      required: [true, "Category is required"],
-    },
-
-    type: {
+    sellMode: {
       type: String,
-      enum: ["animal", "food", "accessory", "medicine", "other"],
-      required: [true, "Product type is required"],
+      enum: ["packaged", "loose"],
+      default: "packaged",
+      required: true,
     },
-
-    description: {
-      type: String,
-      trim: true,
-      default: null,
-    },
-
-    // Array of Cloudinary/S3 image URLs
-    images: {
-      type: [String],
-      default: [],
-    },
-
-    price: {
-      buying: {
-        type: Number,
-        required: [true, "Buying price is required"],
-        min: [0, "Buying price cannot be negative"],
-      },
-      selling: {
-        type: Number,
-        required: [true, "Selling price is required"],
-        min: [0, "Selling price cannot be negative"],
-      },
-    },
-
-    quantity: {
-      inStock: {
-        type: Number,
-        default: 0,
-        min: [0, "Stock cannot be negative"],
-      },
-      minThreshold: {
-        type: Number,
-        default: 5,
-      },
-      unit: {
-        type: String,
-        default: "pcs",
-        trim: true,
-      },
-    },
-
-    // → Supplier model (many Products can come from one Supplier)
-    supplier: {
-      type: Schema.Types.ObjectId,
-      ref: "Supplier",
-      required: [true, "Supplier is required"],
-    },
-
-    // Flexible attributes array — no schema changes needed for new product types
     attributes: {
       type: [AttributeSchema],
       default: [],
     },
 
-    isActive: {
-      type: Boolean,
-      default: true,
+    price: { type: PriceSchema, required: true },
+    quantity: { type: QuantitySchema, required: true },
+
+    images: {
+      type: [ImageSchema],
+      default: [],
     },
+
+    isActive: { type: Boolean, default: true },
+  },
+  { _id: true } // 🔥 Allow _id for variant-level updates
+);
+
+/* ─────────────────────────────
+   Product Schema
+───────────────────────────── */
+
+const ProductSchema = new Schema<IProduct>(
+  {
+    name: { type: String, required: true, trim: true },
+
+    category: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["animal", "food", "accessory", "medicine", "other"],
+      required: true,
+    },
+
+    description: { type: String, default: null, trim: true },
+
+    supplier: {
+      type: Schema.Types.ObjectId,
+      ref: "Supplier",
+      default: null,
+    },
+
+    attributes: {
+      type: [AttributeSchema],
+      default: [],
+    },
+
+    variantOptions: {
+      type: [VariantOptionSchema],
+      default: [],
+    },
+
+    variants: {
+      type: [VariantSchema],
+      default: [],
+      required: true,
+      validate: {
+        validator: function (value: IVariant[]) {
+          return value.length > 0;
+        },
+        message: "Product must have at least one variant",
+      },
+    },
+
+    isActive: { type: Boolean, default: true },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
+/* ─────────────────────────────
+   Indexes
+───────────────────────────── */
 
-// Indexes for common query patterns
 ProductSchema.index({ category: 1 });
 ProductSchema.index({ supplier: 1 });
 ProductSchema.index({ type: 1 });
 ProductSchema.index({ isActive: 1 });
-ProductSchema.index({ "quantity.inStock": 1 });
-ProductSchema.index({ sku: 1 });
-// Text index for search
+ProductSchema.index({ "variants.sku": 1 });
 ProductSchema.index({ name: "text", description: "text" });
 
 export const Product = model<IProduct>("Product", ProductSchema);

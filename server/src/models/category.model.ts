@@ -30,7 +30,7 @@ const CategorySchema = new Schema<ICategory>(
 
     icon: {
       type: String,
-      default: null,
+      trim: true,
     },
 
     description: {
@@ -46,14 +46,12 @@ const CategorySchema = new Schema<ICategory>(
   },
   {
     timestamps: true,
-
-    versionKey: false,
-
     toJSON: {
       virtuals: true,
       transform: (_doc, ret: any) => {
         ret.id = ret._id.toString();
         delete ret._id;
+        delete ret.__v;
         return ret;
       },
     },
@@ -63,6 +61,7 @@ const CategorySchema = new Schema<ICategory>(
       transform: (_doc, ret: any) => {
         ret.id = ret._id.toString();
         delete ret._id;
+        delete ret.__v;
         return ret;
       },
     },

@@ -1,71 +1,46 @@
 import { Schema, model, Document, Types } from "mongoose";
-
-export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
-export type OrderStatus =
-  | "pending"
-  | "confirmed"
-  | "ready"
-  | "delivered"
-  | "cancelled";
-export type PaymentMethod = "cash" | "card" | "online" | "other";
-
-export interface IOrderItem {
-  product: Types.ObjectId;
-  quantity: number;
-  unitPrice: number;    // Price at time of purchase — frozen so price changes don't affect history
-  subtotal: number;     // quantity * unitPrice
-}
-
-export interface ICustomer {
-  name: string;
-  phone: string;
-  email?: string;
-}
-
-export interface IOrder extends Document {
-  orderNumber: string;  // Human-readable e.g. "ORD-20240315-001"
-  customer: ICustomer;
-  items: IOrderItem[];
-  totalAmount: number;
-  discount?: number;        // Discount in currency value
-  finalAmount: number;      // totalAmount - discount
-  paymentStatus: PaymentStatus;
-  paymentMethod: PaymentMethod;
-  orderStatus: OrderStatus;
-  // → User model — the staff member who processed this order
-  handledBy: Types.ObjectId;
-  notes?: string;
-  receiptPrinted: boolean;  // Track if receipt was printed
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { ICustomer, IOrder, IOrderItem } from "../types/types";
 
 const OrderItemSchema = new Schema<IOrderItem>(
   {
-    // → Product model (embedded reference inside order)
     product: {
       type: Schema.Types.ObjectId,
       ref: "Product",
-      required: [true, "Product reference is required"],
+      required: true,
+    },
+
+    variant: {
+      type: Schema.Types.ObjectId,
+      required: true,
     },
 
     quantity: {
       type: Number,
-      required: [true, "Quantity is required"],
-      min: [1, "Quantity must be at least 1"],
+      required: true,
+      min: 0.001,
     },
 
-    // Price is frozen at time of purchase
-    // Never reference product.price.selling directly for history
+    unit: {
+      type: String,
+      enum: ["pcs", "g", "ml"],
+      required: true,
+    },
+
+    sellMode: {
+      type: String,
+      enum: ["packaged", "loose"],
+      required: true,
+    },
+
     unitPrice: {
       type: Number,
-      required: [true, "Unit price is required"],
-      min: [0, "Unit price cannot be negative"],
+      required: true,
+      min: 0,
     },
 
     subtotal: {
       type: Number,
-      required: [true, "Subtotal is required"],
+      required: true,
     },
   },
   { _id: true }
@@ -106,7 +81,8 @@ const OrderSchema = new Schema<IOrder>(
     // If you add customer accounts later, add a customer ref alongside this
     customer: {
       type: CustomerSchema,
-      required: [true, "Customer info is required"],
+      required: false,
+      default: null,
     },
 
     // Array of ordered items — each has a frozen price snapshot
@@ -156,19 +132,6 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       enum: ["pending", "confirmed", "ready", "delivered", "cancelled"],
       default: "pending",
-    },
-
-    // → User model — staff who handled the sale
-    handledBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Handler (staff) reference is required"],
-    },
-
-    notes: {
-      type: String,
-      trim: true,
-      default: null,
     },
 
     // Track if receipt was printed for this order

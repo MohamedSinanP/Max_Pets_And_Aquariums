@@ -80,17 +80,64 @@ export const categoryController = {
   // ─────────────────────────────────────────
   // GET ALL CATEGORIES
   // ─────────────────────────────────────────
-  getAll: async (_req: Request, res: Response) => {
-    const categories = await Category.find()
-      .populate("parent", "name slug")
-      .sort({ createdAt: -1 });
+  getAll: async (req: Request, res: Response) => {
+    const {
+      page = "1",
+      limit = "10",
+      search,
+      isActive,
+      type,
+      sort = "-createdAt", // 👈 default
+    } = req.query;
 
-    return sendSuccess(
-      res,
-      STATUS_CODES.SUCCESS,
-      "Categories fetched successfully",
-      categories
-    );
+    // ─────────────────────────────────────────
+    // Pagination
+    // ─────────────────────────────────────────
+    const pageNumber = parseInt(page as string, 10);
+    const limitNumber = parseInt(limit as string, 10);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // ─────────────────────────────────────────
+    // Filter
+    // ─────────────────────────────────────────
+    const filter: any = {};
+
+    if (isActive !== undefined) {
+      filter.isActive = isActive === "true";
+    }
+
+    if (type) {
+      filter.type = type;
+    }
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { slug: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // ─────────────────────────────────────────
+    // Execute Query
+    // ─────────────────────────────────────────
+    const [categories, total] = await Promise.all([
+      Category.find(filter)
+        .populate("parent", "name slug")
+        .sort(sort as string)
+        .skip(skip)
+        .limit(limitNumber)
+        .select("-__v"),
+      Category.countDocuments(filter),
+    ]);
+
+    return sendSuccess(res, STATUS_CODES.SUCCESS, "Categories fetched successfully", {
+      total,
+      page: pageNumber,
+      limit: limitNumber,
+      totalPages: Math.ceil(total / limitNumber),
+      results: categories,
+    });
   },
 
   // ─────────────────────────────────────────
