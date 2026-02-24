@@ -5,6 +5,8 @@ import morgan from "morgan";
 import { globalErrorHandler } from "./middlewares/error.middleware";
 import authRoutes from "./routes/auth";
 import categoryRoutes from "./routes/category";
+import productRoutes from "./routes/product";
+import orderRoutes from "./routes/order";
 
 const app = express();
 
@@ -13,7 +15,7 @@ const app = express();
 // ─────────────────────────────────────────
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
@@ -28,6 +30,8 @@ app.use(cookieParser());
 // ─────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use(globalErrorHandler);
 

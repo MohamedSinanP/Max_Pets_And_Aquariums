@@ -2,11 +2,12 @@ import { Request, Response } from "express";
 import { Order } from "../models/order.model";
 import { Product } from "../models/product.model";
 import { Types } from "mongoose";
+import { sendError, sendSuccess } from "../utils/api.response";
 
 const convertToBaseUnit = (quantity: number, unit: string) => {
-  if (unit === "g") return quantity / 1000;     // grams → kg
-  if (unit === "ml") return quantity / 1000;    // ml → liter
-  return quantity; // pcs stays same
+  if (unit === "g") return quantity / 1000;
+  if (unit === "ml") return quantity / 1000;
+  return quantity;
 };
 export const orderController = {
 
@@ -179,4 +180,110 @@ export const orderController = {
       });
     }
   },
+  // ─────────────────────────────
+  // GET ALL ORDERS (Pagination + Filters + Search)
+  // ─────────────────────────────
+  async getAll(req: Request, res: Response) {
+    try {
+      const {
+        page,
+        limit,
+        search,
+        orderStatus,
+        paymentStatus,
+        from,
+        to,
+        phone,
+      } = req.query;
+
+      const pageNumber =
+        typeof page === "string" ? parseInt(page) : 1;
+
+      const pageSize =
+        typeof limit === "string" ? parseInt(limit) : 10;
+
+      const skip = (pageNumber - 1) * pageSize;
+
+      const filter: any = {};
+
+      // 🔍 Search
+      if (typeof search === "string") {
+        filter.$or = [
+          { orderNumber: { $regex: search, $options: "i" } },
+          { "customer.name": { $regex: search, $options: "i" } },
+        ];
+      }
+
+      if (typeof orderStatus === "string") {
+        filter.orderStatus = orderStatus;
+      }
+
+      if (typeof paymentStatus === "string") {
+        filter.paymentStatus = paymentStatus;
+      }
+
+      if (typeof phone === "string") {
+        filter["customer.phone"] = phone;
+      }
+
+      if (typeof from === "string" || typeof to === "string") {
+        filter.createdAt = {};
+
+        if (typeof from === "string") {
+          filter.createdAt.$gte = new Date(from);
+        }
+
+        if (typeof to === "string") {
+          filter.createdAt.$lte = new Date(to);
+        }
+      }
+
+      const [orders, total] = await Promise.all([
+        Order.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(pageSize)
+          .lean(),
+        Order.countDocuments(filter),
+      ]);
+
+      return sendSuccess(res, 200, "Orders fetched successfully", {
+        orders,
+        pagination: {
+          total,
+          page: pageNumber,
+          limit: pageSize,
+          totalPages: Math.ceil(total / pageSize),
+        },
+      });
+
+    } catch (error: any) {
+      return sendError(res, 500, "Failed to fetch orders", error.message);
+    }
+  },
+  // ─────────────────────────────
+  // GET SINGLE ORDER
+  // ─────────────────────────────
+  async getById(req: Request, res: Response) {
+    try {
+      const id = req.params.id as string;
+
+      if (!Types.ObjectId.isValid(id)) {
+        return sendError(res, 400, "Invalid order id");
+      }
+
+      const order = await Order.findById(id)
+        .populate("items.product", "name image category")
+        .lean();
+
+      if (!order) {
+        return sendError(res, 404, "Order not found");
+      }
+
+      return sendSuccess(res, 200, "Order fetched successfully", order);
+
+    } catch (error: any) {
+      return sendError(res, 500, "Failed to fetch order", error.message);
+    }
+  }
 }

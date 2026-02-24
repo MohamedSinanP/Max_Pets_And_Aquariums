@@ -1,25 +1,26 @@
 import { Router } from "express";
 import { productController } from "../controllers/product";
 import { upload } from "../middlewares/upload";
+import { asyncHandler } from "../middlewares/asyncHandler";
 
 const router = Router();
 
 router.post(
   "/",
   upload.array("images", 15),
-  productController.create
+  asyncHandler(productController.create)
 );
 
 router.put(
   "/:id",
   upload.array("images", 15),
-  productController.update
+  asyncHandler(productController.update)
 );
 
-router.get("/", productController.getAll);
+router.get("/", asyncHandler(productController.getAll));
 
-router.get("/:id", productController.getOne);
+router.get("/:id", asyncHandler(productController.getOne));
 
-router.delete("/:id", productController.delete);
+router.delete("/:id", asyncHandler(productController.delete));
 
 export default router;
