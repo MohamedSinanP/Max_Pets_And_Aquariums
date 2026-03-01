@@ -66,7 +66,6 @@ export interface CreateCategoryPayload {
   name: string;
   type: CategoryType;
   parent?: string | null; // ObjectId string
-  icon?: string;
   description?: string | null;
 }
 
@@ -74,7 +73,7 @@ export interface UpdateCategoryPayload {
   name?: string;
   type?: CategoryType;
   parent?: string | null;
-  icon?: string;
+  isActive?: boolean;
   description?: string | null;
 }
 

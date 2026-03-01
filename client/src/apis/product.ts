@@ -25,7 +25,6 @@ export interface ProductPrice {
 
 export interface ProductQuantity {
   inStock: number;
-  minThreshold: number;
   unit: QuantityUnit;
 }
 
@@ -113,12 +112,12 @@ export interface GetProductsParams {
 
 export interface VariantPayload {
   _id?: string;
-  sku: string;
   sellMode: SellMode;
   attributes?: ProductAttribute[];
   price: ProductPrice;
   quantity: ProductQuantity;
   images?: ProductImage[];
+  isActive?: boolean;
 }
 
 export interface CreateProductPayload {

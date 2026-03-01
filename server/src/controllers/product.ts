@@ -2,6 +2,137 @@ import { Request, Response } from "express";
 import { Product } from "../models/product.model";
 import { Types } from "mongoose";
 import { cloudinaryUtil } from "../utils/cloudinary.utils";
+import { IVariant } from "../types/types";
+
+/* ═══════════════════════════════════════════
+   TYPES
+═══════════════════════════════════════════ */
+
+interface ParsedVariant {
+  _id?: string;
+  sellMode: "packaged" | "loose";
+  price?: { buying: number; selling: number };
+  pricePerBaseUnit?: number;
+  quantity: { inStock: number; baseUnit: "g" | "ml" | "pcs" };
+  attributes?: { key: string; value: string }[];
+  images?: { url: string; public_id: string }[];
+  isActive?: boolean;
+}
+
+type ValidationResult =
+  | { valid: true }
+  | { valid: false; message: string };
+
+/* ═══════════════════════════════════════════
+   SHARED HELPERS
+═══════════════════════════════════════════ */
+
+function validateVariant(variant: ParsedVariant, index: number): ValidationResult {
+  const { sellMode, price, pricePerBaseUnit, quantity } = variant;
+
+  if (quantity.inStock < 0) {
+    return {
+      valid: false,
+      message: `Variant ${index + 1}: inStock must be >= 0`,
+    };
+  }
+
+  if (sellMode === "packaged") {
+    if (!price || price.selling == null || price.selling < 0) {
+      return {
+        valid: false,
+        message: `Variant ${index + 1}: packaged variants require a valid selling price`,
+      };
+    }
+    if (price.buying == null || price.buying < 0) {
+      return {
+        valid: false,
+        message: `Variant ${index + 1}: packaged variants require a valid buying price`,
+      };
+    }
+    if (quantity.baseUnit !== "pcs") {
+      return {
+        valid: false,
+        message: `Variant ${index + 1}: packaged variants must use "pcs" as baseUnit`,
+      };
+    }
+  }
+
+  if (sellMode === "loose") {
+    if (pricePerBaseUnit == null || pricePerBaseUnit < 0) {
+      return {
+        valid: false,
+        message: `Variant ${index + 1}: loose variants require pricePerBaseUnit >= 0`,
+      };
+    }
+    if (!["g", "ml"].includes(quantity.baseUnit)) {
+      return {
+        valid: false,
+        message: `Variant ${index + 1}: loose variants must use "g" or "ml" as baseUnit, not "pcs"`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+function sanitizeVariant(variant: ParsedVariant): ParsedVariant {
+  const sanitized = { ...variant };
+
+  if (sanitized.sellMode === "packaged") {
+    delete sanitized.pricePerBaseUnit;
+    sanitized.quantity = { ...sanitized.quantity, baseUnit: "pcs" };
+  }
+
+  if (sanitized.sellMode === "loose") {
+    delete sanitized.price;
+  }
+
+  return sanitized;
+}
+
+function validateAndSanitizeVariants(
+  variants: ParsedVariant[]
+): { valid: false; message: string } | { valid: true; variants: ParsedVariant[] } {
+  if (!variants || variants.length === 0) {
+    return { valid: false, message: "Product must have at least one variant" };
+  }
+
+  const sanitized: ParsedVariant[] = [];
+
+  for (let i = 0; i < variants.length; i++) {
+    const result = validateVariant(variants[i], i);
+    if (!result.valid) return result;
+    sanitized.push(sanitizeVariant(variants[i]));
+  }
+
+  return { valid: true, variants: sanitized };
+}
+
+async function handleVariantImages(
+  variantIndex: number,
+  files: Express.Multer.File[],
+  oldImages?: { url: string; public_id: string }[]
+): Promise<{ url: string; public_id: string }[] | null> {
+  const variantFiles = files.filter(
+    (file) => file.fieldname === `variants[${variantIndex}][images]`
+  );
+
+  if (variantFiles.length === 0) return null; // no new uploads
+
+  // Delete old Cloudinary images before uploading new ones
+  if (oldImages && oldImages.length > 0) {
+    for (const img of oldImages) {
+      await cloudinaryUtil.deleteImage(img.public_id);
+    }
+  }
+
+  return cloudinaryUtil.uploadMultiple(variantFiles, "max_pets/images");
+}
+
+/* ═══════════════════════════════════════════
+   CONTROLLER
+═══════════════════════════════════════════ */
 
 export const productController = {
   // ─────────────────────────────
@@ -27,61 +158,26 @@ export const productController = {
         });
       }
 
-      const parsedVariants = JSON.parse(variants);
+      const parsedVariants: ParsedVariant[] = JSON.parse(variants);
       const parsedAttributes = attributes ? JSON.parse(attributes) : [];
-      const parsedVariantOptions = variantOptions
-        ? JSON.parse(variantOptions)
-        : [];
+      const parsedVariantOptions = variantOptions ? JSON.parse(variantOptions) : [];
 
-      // 🔥 BUSINESS LOGIC ENFORCEMENT
-      for (const variant of parsedVariants) {
-        const { sellMode, quantity, price } = variant;
-
-        if (!price?.selling || price.selling < 0) {
-          return res.status(400).json({
-            success: false,
-            message: "Selling price must be greater than 0",
-          });
-        }
-
-        // ✅ Enforce base units
-        if (sellMode === "loose") {
-          if (!["kg", "L"].includes(quantity.unit)) {
-            return res.status(400).json({
-              success: false,
-              message: "Loose products must use kg or L as unit",
-            });
-          }
-        }
-
-        if (sellMode === "packaged") {
-          quantity.unit = "pcs"; // force base unit
-        }
-
-        // ✅ Enforce minThreshold logic
-        if (quantity.minThreshold > quantity.inStock) {
-          return res.status(400).json({
-            success: false,
-            message: "minThreshold cannot exceed inStock quantity",
-          });
-        }
+      // ── Validate + sanitize ───────────────────────────────────────────
+      const validation = validateAndSanitizeVariants(parsedVariants);
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, message: validation.message });
       }
 
-      // Handle variant-level image uploads
+      const sanitizedVariants = validation.variants;
+
+      // ── Image uploads ─────────────────────────────────────────────────
       if (req.files && Array.isArray(req.files)) {
-        for (let i = 0; i < parsedVariants.length; i++) {
-          const variantFiles = req.files.filter(
-            (file: any) => file.fieldname === `variants[${i}][images]`
+        for (let i = 0; i < sanitizedVariants.length; i++) {
+          const uploaded = await handleVariantImages(
+            i,
+            req.files as Express.Multer.File[]
           );
-
-          if (variantFiles.length > 0) {
-            const uploadedImages = await cloudinaryUtil.uploadMultiple(
-              variantFiles,
-              "max_pets/images"
-            );
-
-            parsedVariants[i].images = uploadedImages;
-          }
+          if (uploaded) sanitizedVariants[i].images = uploaded;
         }
       }
 
@@ -93,18 +189,13 @@ export const productController = {
         supplier,
         attributes: parsedAttributes,
         variantOptions: parsedVariantOptions,
-        variants: parsedVariants,
+        variants: sanitizedVariants,
       });
 
-      res.status(201).json({
-        success: true,
-        data: product,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.status(201).json({ success: true, data: product });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      return res.status(500).json({ success: false, message });
     }
   },
 
@@ -114,115 +205,108 @@ export const productController = {
   async update(req: Request, res: Response) {
     try {
       const id = req.params.id as string;
+
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid product id",
-        });
+        return res.status(400).json({ success: false, message: "Invalid product id" });
       }
 
       const existingProduct = await Product.findById(id);
 
       if (!existingProduct) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found",
-        });
+        return res.status(404).json({ success: false, message: "Product not found" });
       }
 
-      const updateData: any = { ...req.body };
+      const {
+        variants: rawVariants,
+        attributes,
+        variantOptions,
+        ...scalarFields
+      } = req.body;
 
-      if (updateData.attributes)
-        updateData.attributes = JSON.parse(updateData.attributes);
+      const incomingVariants: ParsedVariant[] = rawVariants
+        ? JSON.parse(rawVariants)
+        : null;
 
-      if (updateData.variantOptions)
-        updateData.variantOptions = JSON.parse(updateData.variantOptions);
+      // ── Validate + sanitize ───────────────────────────────────────────
+      const validation = validateAndSanitizeVariants(incomingVariants);
+      if (!validation.valid) {
+        return res.status(400).json({ success: false, message: validation.message });
+      }
 
-      if (updateData.variants)
-        updateData.variants = JSON.parse(updateData.variants);
+      const sanitizedVariants = validation.variants;
 
-      if (updateData.variants) {
-        for (const variant of updateData.variants) {
-          const { sellMode, quantity, price } = variant;
+      // ── Diff: find removed variants and delete their images ───────────
+      const incomingIds = new Set(
+        sanitizedVariants
+          .filter((v) => v._id && Types.ObjectId.isValid(v._id))
+          .map((v) => v._id as string)
+      );
 
-          if (!price?.selling || price.selling < 0) {
-            return res.status(400).json({
-              success: false,
-              message: "Selling price must be greater than 0",
-            });
-          }
+      const removedVariants = existingProduct.variants.filter(
+        (v: IVariant) => !incomingIds.has(v._id.toString())
+      );
 
-          // ✅ Loose must be kg or L
-          if (sellMode === "loose") {
-            if (!["kg", "L"].includes(quantity.unit)) {
-              return res.status(400).json({
-                success: false,
-                message: "Loose products must use kg or L as unit",
-              });
-            }
-          }
-
-          // ✅ Packaged always pcs
-          if (sellMode === "packaged") {
-            quantity.unit = "pcs";
-          }
-
-          if (quantity.minThreshold > quantity.inStock) {
-            return res.status(400).json({
-              success: false,
-              message: "minThreshold cannot exceed inStock quantity",
-            });
-          }
+      for (const removed of removedVariants) {
+        for (const img of removed.images ?? []) {
+          await cloudinaryUtil.deleteImage(img.public_id);
         }
       }
-      // Handle variant-level image updates
-      if (req.files && Array.isArray(req.files) && updateData.variants) {
-        for (let i = 0; i < updateData.variants.length; i++) {
-          const variantFiles = req.files.filter(
-            (file: any) => file.fieldname === `variants[${i}][images]`
-          );
 
-          if (variantFiles.length > 0) {
-            // 🔥 Delete old images from cloudinary
-            const oldVariant = existingProduct.variants.find(
-              (v: any) => v._id.toString() === updateData.variants[i]._id
-            );
+      // ── Build final variants array ────────────────────────────────────
+      const uploadedFiles = Array.isArray(req.files)
+        ? (req.files as Express.Multer.File[])
+        : [];
 
-            if (oldVariant && oldVariant.images.length > 0) {
-              for (const img of oldVariant.images) {
-                await cloudinaryUtil.deleteImage(img.public_id);
-              }
-            }
+      const finalVariants: ParsedVariant[] = [];
 
-            // 🔥 Upload new images
-            const uploadedImages = await cloudinaryUtil.uploadMultiple(
-              variantFiles,
-              "max_pets/images"
-            );
+      for (let i = 0; i < sanitizedVariants.length; i++) {
+        const incoming = sanitizedVariants[i];
 
-            updateData.variants[i].images = uploadedImages;
-          }
+        // Match to existing variant by _id
+        const existingVariant =
+          incoming._id && Types.ObjectId.isValid(incoming._id)
+            ? existingProduct.variants.find(
+              (v: IVariant) => v._id.toString() === incoming._id
+            )
+            : null;
+
+        // Handle images: upload new or preserve old
+        const uploaded = await handleVariantImages(
+          i,
+          uploadedFiles,
+          existingVariant?.images
+        );
+
+        if (uploaded) {
+          incoming.images = uploaded;
+        } else if (existingVariant) {
+          incoming.images = existingVariant.images; // preserve existing
         }
+
+        finalVariants.push(incoming);
       }
+
+      // ── Build update payload ──────────────────────────────────────────
+      const updatePayload: Record<string, unknown> = {
+        ...scalarFields,
+        variants: finalVariants,
+      };
+
+      if (attributes) updatePayload.attributes = JSON.parse(attributes);
+      if (variantOptions) updatePayload.variantOptions = JSON.parse(variantOptions);
 
       const updatedProduct = await Product.findByIdAndUpdate(
         id,
-        updateData,
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+        updatePayload,
+        { new: true, runValidators: true }
+      )
+        .populate("category")
+        .populate("supplier");
 
-      res.json({
-        success: true,
-        data: updatedProduct,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.json({ success: true, data: updatedProduct });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      return res.status(500).json({ success: false, message });
     }
   },
 
@@ -234,10 +318,7 @@ export const productController = {
       const id = req.params.id as string;
 
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid product id",
-        });
+        return res.status(400).json({ success: false, message: "Invalid product id" });
       }
 
       const product = await Product.findById(id)
@@ -245,21 +326,13 @@ export const productController = {
         .populate("supplier");
 
       if (!product || !product.isActive) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found",
-        });
+        return res.status(404).json({ success: false, message: "Product not found" });
       }
 
-      res.json({
-        success: true,
-        data: product,
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.json({ success: true, data: product });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      return res.status(500).json({ success: false, message });
     }
   },
 
@@ -279,14 +352,11 @@ export const productController = {
         isActive = "true",
       } = req.query;
 
-      const query: any = {
+      const query: Record<string, unknown> = {
         isActive: isActive === "true",
       };
 
-      if (search) {
-        query.$text = { $search: search as string };
-      }
-
+      if (search) query.$text = { $search: search as string };
       if (category) query.category = category;
       if (type) query.type = type;
       if (supplier) query.supplier = supplier;
@@ -300,11 +370,10 @@ export const productController = {
           .skip(skip)
           .limit(Number(limit))
           .sort({ createdAt: -1 }),
-
         Product.countDocuments(query),
       ]);
 
-      res.json({
+      return res.json({
         success: true,
         data: products,
         pagination: {
@@ -314,11 +383,9 @@ export const productController = {
           totalPages: Math.ceil(total / Number(limit)),
         },
       });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      return res.status(500).json({ success: false, message });
     }
   },
 
@@ -330,10 +397,7 @@ export const productController = {
       const id = req.params.id as string;
 
       if (!Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid product id",
-        });
+        return res.status(400).json({ success: false, message: "Invalid product id" });
       }
 
       const product = await Product.findByIdAndUpdate(
@@ -343,21 +407,13 @@ export const productController = {
       );
 
       if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: "Product not found",
-        });
+        return res.status(404).json({ success: false, message: "Product not found" });
       }
 
-      res.json({
-        success: true,
-        message: "Product soft deleted",
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      });
+      return res.json({ success: true, message: "Product soft deleted" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Internal server error";
+      return res.status(500).json({ success: false, message });
     }
   },
 };

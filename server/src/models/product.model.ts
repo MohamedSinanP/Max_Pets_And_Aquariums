@@ -47,12 +47,16 @@ const PriceSchema = new Schema<IPrice>(
 const QuantitySchema = new Schema<IQuantity>(
   {
     inStock: { type: Number, default: 0, min: 0 },
-    minThreshold: { type: Number, default: 5 },
-    unit: { type: String, default: "pcs", trim: true },
+
+    baseUnit: {
+      type: String,
+      enum: ["g", "ml", "pcs"],
+      default: "pcs",
+      required: true,
+    },
   },
   { _id: false }
 );
-
 /* ─────────────────────────────
    Variant Schema
 ───────────────────────────── */
@@ -77,7 +81,22 @@ const VariantSchema = new Schema<IVariant>(
       default: [],
     },
 
-    price: { type: PriceSchema, required: true },
+    // For packaged products
+    price: {
+      type: PriceSchema,
+      required: function () {
+        return this.sellMode === "packaged";
+      },
+    },
+
+    // For loose products (stored per base unit: g/ml)
+    pricePerBaseUnit: {
+      type: Number,
+      min: 0,
+      required: function (this: IVariant) {
+        return this.sellMode === "loose";
+      },
+    },
     quantity: { type: QuantitySchema, required: true },
 
     images: {

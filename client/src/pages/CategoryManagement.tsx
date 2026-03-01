@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import DataTable, { type Column, type TableAction } from "../components/DataTable";
 
@@ -26,7 +26,6 @@ interface CategoryForm {
   name: string;
   parent: string | null;
   type: CategoryType;
-  icon?: string;
   description?: string | null;
   isActive: boolean;
 }
@@ -98,7 +97,6 @@ function CategoryModal({ mode, initial, parentOptions, onClose, onSave }: ModalP
     name: initial?.name ?? "",
     parent: initialParentId,
     type: initial?.type ?? "living",
-    icon: initial?.icon ?? "",
     description: initial?.description ?? "",
     isActive: initial?.isActive ?? true,
   });
@@ -123,7 +121,6 @@ function CategoryModal({ mode, initial, parentOptions, onClose, onSave }: ModalP
     onSave({
       ...form,
       name: form.name.trim(),
-      icon: form.icon?.trim() ? form.icon.trim() : "",
       description: form.description?.trim() ? form.description.trim() : null,
     });
   };
@@ -240,8 +237,10 @@ function CategoryModal({ mode, initial, parentOptions, onClose, onSave }: ModalP
           }}
         >
           {/* Name + Icon (stack on mobile) */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 120px", gap: 14 }}>
-            <div>
+          <div style={{
+            display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr"
+          }}>
+            < div >
               <label style={labelStyle}>Category Name *</label>
               <input
                 value={form.name}
@@ -250,16 +249,6 @@ function CategoryModal({ mode, initial, parentOptions, onClose, onSave }: ModalP
                 style={inputStyle(!!errors.name)}
               />
               {errors.name && <p style={{ margin: "6px 0 0", color: "#f87171", fontSize: 12 }}>{errors.name}</p>}
-            </div>
-
-            <div>
-              <label style={labelStyle}>Icon</label>
-              <input
-                value={form.icon ?? ""}
-                onChange={(e) => set("icon", e.target.value)}
-                placeholder="🐾"
-                style={{ ...inputStyle(false), textAlign: "center", fontSize: 22 }}
-              />
             </div>
           </div>
 
@@ -394,8 +383,8 @@ function CategoryModal({ mode, initial, parentOptions, onClose, onSave }: ModalP
             {mode === "create" ? "Create Category" : "Save Changes"}
           </button>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
 
@@ -457,7 +446,6 @@ export default function CategoryManagement() {
           name: data.name,
           type: data.type,
           parent: data.parent,
-          icon: data.icon,
           description: data.description,
         });
 
@@ -473,8 +461,8 @@ export default function CategoryManagement() {
           name: data.name,
           type: data.type,
           parent: data.parent,
-          icon: data.icon,
           description: data.description,
+          isActive: data.isActive,
         });
 
         toast.success(res.message || "Category updated");
@@ -506,14 +494,6 @@ export default function CategoryManagement() {
   }, [categories]);
 
   const columns: Column<Category>[] = [
-    {
-      key: "icon",
-      label: "Icon",
-      width: isMobile ? "52px" : "60px",
-      sortable: false,
-      align: "center",
-      render: (row) => <span style={{ fontSize: 22 }}>{row.icon || "📁"}</span>,
-    },
     {
       key: "name",
       label: "Name",
@@ -605,15 +585,7 @@ export default function CategoryManagement() {
       color: "#0d9488",
       hoverColor: "#0f766e",
       hoverBg: "#f0fdfa",
-    },
-    {
-      label: "Deactivate",
-      icon: <span style={{ fontSize: 14 }}>{/* you can change icon */}↻</span>,
-      onClick: (row) => void handleToggle(row),
-      color: "#0891b2",
-      hoverColor: "#0e7490",
-      hoverBg: "#f0f9ff",
-    },
+    }
   ];
 
   const statCards = [
@@ -628,7 +600,7 @@ export default function CategoryManagement() {
       style={{
         flex: 1,
         background: "#f7fffe",
-        minHeight: "100vh",
+        minHeight: "100%",
         padding: isMobile ? "84px 12px 16px" : "24px",
         fontFamily: "'DM Sans', sans-serif",
       }}

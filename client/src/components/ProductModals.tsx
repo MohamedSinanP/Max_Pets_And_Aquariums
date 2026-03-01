@@ -3,142 +3,23 @@ import type {
   Product,
   CreateProductPayload,
   UpdateProductPayload,
-  ProductAttribute,
   VariantPayload,
-  VariantOption,
   ProductType,
   SellMode,
 } from "../apis/product";
 
-/* ─── Shared Styles ─── */
-const TEAL = "#0d9488";
-const TEAL_DARK = "#0f766e";
-const TEAL_LIGHT = "#ccfbf1";
-const TEAL_BG = "#f0fdfa";
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.45)",
-  backdropFilter: "blur(4px)",
-  zIndex: 2000,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 16,
-};
-
-const modalBase: React.CSSProperties = {
-  background: "#fff",
-  borderRadius: 20,
-  boxShadow: "0 24px 64px rgba(15,118,110,0.18), 0 4px 16px rgba(0,0,0,0.1)",
-  width: "100%",
-  maxWidth: 640,
-  maxHeight: "90vh",
-  overflowY: "auto",
-  fontFamily: "'DM Sans', sans-serif",
-};
-
-const modalHeader: React.CSSProperties = {
-  background: `linear-gradient(135deg, ${TEAL_DARK} 0%, ${TEAL} 100%)`,
-  padding: "20px 24px",
-  borderRadius: "20px 20px 0 0",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  position: "sticky",
-  top: 0,
-  zIndex: 1,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 14px",
-  border: `1.5px solid ${TEAL_LIGHT}`,
-  borderRadius: 10,
-  fontSize: 14,
-  color: "#0d4f4a",
-  background: TEAL_BG,
-  outline: "none",
-  fontFamily: "'DM Sans', sans-serif",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 700,
-  color: TEAL_DARK,
-  marginBottom: 6,
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const sectionTitle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 800,
-  color: TEAL_DARK,
-  padding: "10px 0 6px",
-  borderBottom: `2px solid ${TEAL_LIGHT}`,
-  marginBottom: 14,
-};
-
-const btnPrimary: React.CSSProperties = {
-  background: `linear-gradient(135deg, ${TEAL_DARK}, ${TEAL})`,
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  padding: "10px 22px",
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
-};
-
-const btnSecondary: React.CSSProperties = {
-  background: "#fff",
-  color: TEAL,
-  border: `1.5px solid ${TEAL_LIGHT}`,
-  borderRadius: 10,
-  padding: "10px 20px",
-  fontSize: 14,
-  fontWeight: 700,
-  cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
-};
-
-const btnDanger: React.CSSProperties = {
-  background: "#fff",
-  color: "#ef4444",
-  border: "1.5px solid #fecaca",
-  borderRadius: 8,
-  padding: "6px 12px",
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: "pointer",
-  fontFamily: "'DM Sans', sans-serif",
-};
-
-const tagStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 6,
-  background: TEAL_LIGHT,
-  color: TEAL_DARK,
-  borderRadius: 8,
-  padding: "4px 10px",
-  fontSize: 12,
-  fontWeight: 700,
-};
-
 /* ─── Empty Variant ─── */
 const emptyVariant = (): VariantPayload => ({
-  sku: "",
   sellMode: "packaged",
   attributes: [],
   price: { buying: 0, selling: 0 },
-  quantity: { inStock: 0, minThreshold: 5, unit: "pcs" },
+  quantity: { inStock: 0, unit: "pcs" },
+  isActive: true
 });
+
+/* ─── Shared input className ─── */
+const inputCls =
+  "w-full px-3.5 py-2.5 border-[1.5px] border-teal-100 rounded-xl text-sm text-teal-900 bg-teal-50 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100 transition-all box-border";
 
 /* ─── FormField ─── */
 function FormField({
@@ -149,8 +30,10 @@ function FormField({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={labelStyle}>{label}</label>
+    <div className="mb-3.5">
+      <label className="block text-xs font-bold text-teal-700 mb-1.5 uppercase tracking-wide">
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -170,7 +53,7 @@ function Select({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      style={{ ...inputStyle }}
+      className={inputCls}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -178,6 +61,48 @@ function Select({
         </option>
       ))}
     </select>
+  );
+}
+
+/* ─── Toggle Switch ─── */
+function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-offset-1 ${checked ? "bg-teal-500" : "bg-gray-200"
+          }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? "translate-x-6" : "translate-x-1"
+            }`}
+        />
+      </button>
+      <span
+        className={`text-sm font-semibold ${checked ? "text-teal-700" : "text-gray-400"
+          }`}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/* ─── Section Title ─── */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-xs font-extrabold text-teal-700 py-2.5 border-b-2 border-teal-100 mb-3.5 uppercase tracking-wide">
+      {children}
+    </div>
   );
 }
 
@@ -207,14 +132,19 @@ function VariantEditor({
   const addAttr = () => {
     if (!attrKey.trim() || !attrVal.trim()) return;
     update({
-      attributes: [...(variant.attributes ?? []), { key: attrKey.trim(), value: attrVal.trim() }],
+      attributes: [
+        ...(variant.attributes ?? []),
+        { key: attrKey.trim(), value: attrVal.trim() },
+      ],
     });
     setAttrKey("");
     setAttrVal("");
   };
 
   const removeAttr = (i: number) =>
-    update({ attributes: variant.attributes?.filter((_, ai) => ai !== i) ?? [] });
+    update({
+      attributes: variant.attributes?.filter((_, ai) => ai !== i) ?? [],
+    });
 
   const handleImages = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) onImageChange(Array.from(e.target.files));
@@ -223,43 +153,30 @@ function VariantEditor({
   const isSellModeLoose = variant.sellMode === "loose";
 
   return (
-    <div
-      style={{
-        border: `1.5px solid ${TEAL_LIGHT}`,
-        borderRadius: 14,
-        padding: 16,
-        marginBottom: 14,
-        background: TEAL_BG,
-        position: "relative",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-        }}
-      >
-        <span style={{ fontWeight: 800, fontSize: 13, color: TEAL_DARK }}>
+    <div className="border-[1.5px] border-teal-100 rounded-2xl p-4 mb-3.5 bg-teal-50">
+      {/* Variant header */}
+      <div className="flex justify-between items-center mb-3">
+        <span className="font-extrabold text-sm text-teal-700">
           Variant {index + 1}
         </span>
-        {index > 0 && (
-          <button onClick={onRemove} style={btnDanger}>
-            Remove
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <ToggleSwitch
+            checked={variant.isActive ?? true}
+            onChange={(v) => update({ isActive: v })}
+            label={variant.isActive ?? true ? "Active" : "Inactive"}
+          />
+          {index > 0 && (
+            <button
+              onClick={onRemove}
+              className="bg-white text-red-500 border-[1.5px] border-red-200 rounded-lg px-3 py-1.5 text-xs font-bold hover:bg-red-50 transition-colors cursor-pointer"
+            >
+              Remove
+            </button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <FormField label="SKU *">
-          <input
-            style={inputStyle}
-            value={variant.sku}
-            onChange={(e) => update({ sku: e.target.value.toUpperCase() })}
-            placeholder="e.g. PROD-001-RED"
-          />
-        </FormField>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <FormField label="Sell Mode">
           <Select
             value={variant.sellMode}
@@ -278,57 +195,7 @@ function VariantEditor({
             ]}
           />
         </FormField>
-        <FormField label="Buying Price (₹) *">
-          <input
-            style={inputStyle}
-            type="number"
-            min={0}
-            value={variant.price.buying}
-            onChange={(e) =>
-              update({ price: { ...variant.price, buying: +e.target.value } })
-            }
-          />
-        </FormField>
-        <FormField label="Selling Price (₹) *">
-          <input
-            style={inputStyle}
-            type="number"
-            min={0}
-            value={variant.price.selling}
-            onChange={(e) =>
-              update({ price: { ...variant.price, selling: +e.target.value } })
-            }
-          />
-        </FormField>
-        <FormField label={`In Stock (${variant.quantity.unit})`}>
-          <input
-            style={inputStyle}
-            type="number"
-            min={0}
-            value={variant.quantity.inStock}
-            onChange={(e) =>
-              update({
-                quantity: { ...variant.quantity, inStock: +e.target.value },
-              })
-            }
-          />
-        </FormField>
-        <FormField label="Min Threshold">
-          <input
-            style={inputStyle}
-            type="number"
-            min={0}
-            value={variant.quantity.minThreshold}
-            onChange={(e) =>
-              update({
-                quantity: {
-                  ...variant.quantity,
-                  minThreshold: +e.target.value,
-                },
-              })
-            }
-          />
-        </FormField>
+
         {isSellModeLoose && (
           <FormField label="Unit">
             <Select
@@ -343,44 +210,80 @@ function VariantEditor({
             />
           </FormField>
         )}
+
+        <FormField label="Buying Price (₹) *">
+          <input
+            className={inputCls}
+            type="number"
+            min={0}
+            value={variant.price.buying}
+            onChange={(e) =>
+              update({ price: { ...variant.price, buying: +e.target.value } })
+            }
+          />
+        </FormField>
+
+        <FormField label="Selling Price (₹) *">
+          <input
+            className={inputCls}
+            type="number"
+            min={0}
+            value={variant.price.selling}
+            onChange={(e) =>
+              update({
+                price: { ...variant.price, selling: +e.target.value },
+              })
+            }
+          />
+        </FormField>
+
+        <FormField label={`In Stock (${variant.quantity.unit})`}>
+          <input
+            className={inputCls}
+            type="number"
+            min={0}
+            value={variant.quantity.inStock}
+            onChange={(e) =>
+              update({
+                quantity: { ...variant.quantity, inStock: +e.target.value },
+              })
+            }
+          />
+        </FormField>
       </div>
 
       {/* Attributes */}
-      <div style={sectionTitle}>Attributes</div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+      <SectionTitle>Attributes</SectionTitle>
+      <div className="flex gap-2 mb-2">
         <input
-          style={{ ...inputStyle, flex: 1 }}
+          className="flex-1 px-3.5 py-2.5 border-[1.5px] border-teal-100 rounded-xl text-sm text-teal-900 bg-teal-50 outline-none focus:border-teal-400 transition-all"
           placeholder="Key (e.g. Color)"
           value={attrKey}
           onChange={(e) => setAttrKey(e.target.value)}
         />
         <input
-          style={{ ...inputStyle, flex: 1 }}
+          className="flex-1 px-3.5 py-2.5 border-[1.5px] border-teal-100 rounded-xl text-sm text-teal-900 bg-teal-50 outline-none focus:border-teal-400 transition-all"
           placeholder="Value (e.g. Red)"
           value={attrVal}
           onChange={(e) => setAttrVal(e.target.value)}
         />
         <button
           onClick={addAttr}
-          style={{ ...btnPrimary, padding: "10px 16px", flexShrink: 0 }}
+          className="bg-gradient-to-br from-teal-700 to-teal-500 text-white border-none rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer hover:from-teal-800 hover:to-teal-600 transition-all shrink-0"
         >
           +
         </button>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+      <div className="flex flex-wrap gap-1.5 mb-2.5">
         {variant.attributes?.map((a, ai) => (
-          <span key={ai} style={tagStyle}>
+          <span
+            key={ai}
+            className="inline-flex items-center gap-1.5 bg-teal-100 text-teal-700 rounded-lg px-2.5 py-1 text-xs font-bold"
+          >
             {a.key}: {a.value}
             <button
               onClick={() => removeAttr(ai)}
-              style={{
-                border: "none",
-                background: "none",
-                cursor: "pointer",
-                color: TEAL_DARK,
-                fontWeight: 900,
-                padding: 0,
-              }}
+              className="border-none bg-transparent cursor-pointer text-teal-700 font-black p-0 leading-none hover:text-teal-900"
             >
               ×
             </button>
@@ -389,10 +292,10 @@ function VariantEditor({
       </div>
 
       {/* Images */}
-      <div style={sectionTitle}>Images</div>
+      <SectionTitle>Images</SectionTitle>
       <button
         onClick={() => fileRef.current?.click()}
-        style={{ ...btnSecondary, fontSize: 13, padding: "8px 16px" }}
+        className="bg-white text-teal-600 border-[1.5px] border-teal-100 rounded-xl px-4 py-2 text-sm font-bold cursor-pointer hover:bg-teal-50 transition-colors"
       >
         📷 Upload Images
       </button>
@@ -401,49 +304,26 @@ function VariantEditor({
         type="file"
         accept="image/*"
         multiple
-        style={{ display: "none" }}
+        className="hidden"
         onChange={handleImages}
       />
       {imageFiles.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+        <div className="flex gap-2 flex-wrap mt-2.5">
           {imageFiles.map((f, fi) => (
             <div
               key={fi}
-              style={{
-                position: "relative",
-                width: 72,
-                height: 72,
-                borderRadius: 10,
-                overflow: "hidden",
-                border: `1.5px solid ${TEAL_LIGHT}`,
-              }}
+              className="relative w-[72px] h-[72px] rounded-xl overflow-hidden border-[1.5px] border-teal-100"
             >
               <img
                 src={URL.createObjectURL(f)}
                 alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                className="w-full h-full object-cover"
               />
               <button
                 onClick={() =>
                   onImageChange(imageFiles.filter((_, ffi) => ffi !== fi))
                 }
-                style={{
-                  position: "absolute",
-                  top: 3,
-                  right: 3,
-                  background: "rgba(255,255,255,0.9)",
-                  border: "none",
-                  borderRadius: "50%",
-                  width: 18,
-                  height: 18,
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 900,
-                  lineHeight: "18px",
-                  textAlign: "center",
-                  color: "#ef4444",
-                  padding: 0,
-                }}
+                className="absolute top-0.5 right-0.5 bg-white/90 border-none rounded-full w-[18px] h-[18px] cursor-pointer text-[11px] font-black leading-[18px] text-center text-red-500 p-0 hover:bg-white transition-colors"
               >
                 ×
               </button>
@@ -468,7 +348,6 @@ interface ProductFormModalProps {
   ) => Promise<void>;
   initialData?: Product | null;
   categories: { _id: string; name: string }[];
-  suppliers: { _id: string; name: string }[];
   loading?: boolean;
 }
 
@@ -478,7 +357,6 @@ export function ProductFormModal({
   onSubmit,
   initialData,
   categories,
-  suppliers,
   loading = false,
 }: ProductFormModalProps) {
   const isEdit = !!initialData;
@@ -503,16 +381,15 @@ export function ProductFormModal({
       setSupplier(initialData.supplier?._id ?? "");
       const mapped: VariantPayload[] = initialData.variants.map((v) => ({
         _id: v._id,
-        sku: v.sku,
         sellMode: v.sellMode,
         attributes: v.attributes ?? [],
         price: { buying: v.price.buying, selling: v.price.selling },
         quantity: {
           inStock: v.quantity.inStock,
-          minThreshold: v.quantity.minThreshold,
           unit: v.quantity.unit,
         },
         images: v.images,
+        isActive: v.isActive,
       }));
       setVariants(mapped);
       setVariantImages(mapped.map(() => []));
@@ -535,25 +412,21 @@ export function ProductFormModal({
     setVariantImages((p) => [...p, []]);
   };
 
-  const updateVariant = (i: number, v: VariantPayload) => {
+  const updateVariant = (i: number, v: VariantPayload) =>
     setVariants((p) => p.map((old, idx) => (idx === i ? v : old)));
-  };
 
   const removeVariant = (i: number) => {
     setVariants((p) => p.filter((_, idx) => idx !== i));
     setVariantImages((p) => p.filter((_, idx) => idx !== i));
   };
 
-  const updateVariantImages = (i: number, files: File[]) => {
+  const updateVariantImages = (i: number, files: File[]) =>
     setVariantImages((p) => p.map((old, idx) => (idx === i ? files : old)));
-  };
 
   const handleSubmit = async () => {
     setError("");
     if (!name.trim()) return setError("Product name is required.");
     if (!category) return setError("Category is required.");
-    if (variants.some((v) => !v.sku.trim()))
-      return setError("All variants must have a SKU.");
     if (variants.some((v) => v.price.selling <= 0))
       return setError("Selling price must be greater than 0.");
 
@@ -570,63 +443,61 @@ export function ProductFormModal({
   };
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalBase, maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[2000] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-[20px] shadow-[0_24px_64px_rgba(15,118,110,0.18),0_4px_16px_rgba(0,0,0,0.1)] w-full max-w-[720px] max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={modalHeader}>
+        <div className="bg-gradient-to-br from-teal-700 to-teal-500 px-6 py-5 rounded-t-[20px] flex items-center justify-between sticky top-0 z-10">
           <div>
-            <h2 style={{ margin: 0, color: "#fff", fontSize: 18, fontWeight: 800 }}>
+            <h2 className="m-0 text-white text-lg font-extrabold">
               {isEdit ? "Edit Product" : "Add New Product"}
             </h2>
-            <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
+            <p className="m-0 mt-0.5 text-white/70 text-xs">
               {isEdit ? "Update product details" : "Fill in the details below"}
             </p>
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              border: "none",
-              borderRadius: 8,
-              color: "#fff",
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              fontSize: 18,
-              fontWeight: 700,
-            }}
+            className="bg-white/15 border-none rounded-lg text-white w-8 h-8 cursor-pointer text-lg font-bold hover:bg-white/25 transition-colors"
           >
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: 24 }}>
+        <div className="p-6">
           {error && (
-            <div
-              style={{
-                background: "#fef2f2",
-                border: "1.5px solid #fecaca",
-                borderRadius: 10,
-                padding: "10px 14px",
-                color: "#dc2626",
-                fontSize: 13,
-                marginBottom: 16,
-              }}
-            >
+            <div className="bg-red-50 border-[1.5px] border-red-200 rounded-xl px-3.5 py-2.5 text-red-600 text-sm mb-4">
               ⚠ {error}
             </div>
           )}
 
-          <div style={sectionTitle}>Basic Info</div>
+          <SectionTitle>Basic Info</SectionTitle>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <FormField label="Product Name *">
-              <input
-                style={inputStyle}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Royal Canin Adult"
+          <FormField label="Product Name *">
+            <input
+              className={inputCls}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Royal Canin Adult"
+            />
+          </FormField>
+
+          {/* Category + Type on same row on lg+ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+            <FormField label="Category *">
+              <Select
+                value={category}
+                onChange={setCategory}
+                options={[
+                  { label: "Select category…", value: "" },
+                  ...categories.map((c) => ({ label: c.name, value: c._id })),
+                ]}
               />
             </FormField>
             <FormField label="Type *">
@@ -642,31 +513,11 @@ export function ProductFormModal({
                 ]}
               />
             </FormField>
-            <FormField label="Category *">
-              <Select
-                value={category}
-                onChange={setCategory}
-                options={[
-                  { label: "Select category…", value: "" },
-                  ...categories.map((c) => ({ label: c.name, value: c._id })),
-                ]}
-              />
-            </FormField>
-            <FormField label="Supplier">
-              <Select
-                value={supplier}
-                onChange={setSupplier}
-                options={[
-                  { label: "None", value: "" },
-                  ...suppliers.map((s) => ({ label: s.name, value: s._id })),
-                ]}
-              />
-            </FormField>
           </div>
 
           <FormField label="Description">
             <textarea
-              style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
+              className={`${inputCls} min-h-[80px] resize-y`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Optional product description…"
@@ -674,7 +525,7 @@ export function ProductFormModal({
           </FormField>
 
           {/* Variants */}
-          <div style={sectionTitle}>Variants</div>
+          <SectionTitle>Variants</SectionTitle>
           {variants.map((v, i) => (
             <VariantEditor
               key={i}
@@ -686,21 +537,32 @@ export function ProductFormModal({
               onImageChange={(files) => updateVariantImages(i, files)}
             />
           ))}
-          <button onClick={addVariant} style={{ ...btnSecondary, marginBottom: 20 }}>
+          <button
+            onClick={addVariant}
+            className="bg-white text-teal-600 border-[1.5px] border-teal-100 rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:bg-teal-50 transition-colors mb-5"
+          >
             + Add Variant
           </button>
 
           {/* Footer */}
-          <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-            <button onClick={onClose} style={btnSecondary}>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={onClose}
+              className="bg-white text-teal-600 border-[1.5px] border-teal-100 rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:bg-teal-50 transition-colors"
+            >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
               disabled={loading}
-              style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}
+              className={`bg-gradient-to-br from-teal-700 to-teal-500 text-white border-none rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:from-teal-800 hover:to-teal-600 transition-all ${loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
             >
-              {loading ? "Saving…" : isEdit ? "Update Product" : "Create Product"}
+              {loading
+                ? "Saving…"
+                : isEdit
+                  ? "Update Product"
+                  : "Create Product"}
             </button>
           </div>
         </div>
@@ -719,171 +581,156 @@ interface ViewProductModalProps {
   product: Product | null;
 }
 
-export function ViewProductModal({ open, onClose, product }: ViewProductModalProps) {
+export function ViewProductModal({
+  open,
+  onClose,
+  product,
+}: ViewProductModalProps) {
   if (!open || !product) return null;
 
-  const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        padding: "8px 0",
-        borderBottom: `1px solid ${TEAL_LIGHT}`,
-        gap: 12,
-      }}
-    >
-      <span style={{ fontSize: 12, fontWeight: 700, color: "#5eaaa0", textTransform: "uppercase", flexShrink: 0 }}>
+  const InfoRow = ({
+    label,
+    value,
+  }: {
+    label: string;
+    value: React.ReactNode;
+  }) => (
+    <div className="flex justify-between py-2 border-b border-teal-100 gap-3">
+      <span className="text-xs font-bold text-teal-400 uppercase tracking-wide shrink-0">
         {label}
       </span>
-      <span style={{ fontSize: 14, color: "#0d4f4a", textAlign: "right" }}>{value}</span>
+      <span className="text-sm text-teal-900 text-right">{value}</span>
     </div>
   );
 
-  const TypeBadge = ({ t }: { t: string }) => {
-    const colors: Record<string, [string, string]> = {
-      food: ["#dcfce7", "#16a34a"],
-      animal: ["#dbeafe", "#1d4ed8"],
-      accessory: ["#fef9c3", "#ca8a04"],
-      medicine: ["#fce7f3", "#be185d"],
-      other: ["#f3f4f6", "#374151"],
-    };
-    const [bg, fg] = colors[t] ?? ["#f3f4f6", "#374151"];
-    return (
-      <span
-        style={{
-          background: bg,
-          color: fg,
-          borderRadius: 8,
-          padding: "3px 10px",
-          fontSize: 12,
-          fontWeight: 700,
-        }}
-      >
-        {t}
-      </span>
-    );
+  const typeCls: Record<string, string> = {
+    food: "bg-green-100 text-green-700",
+    animal: "bg-blue-100 text-blue-700",
+    accessory: "bg-yellow-100 text-yellow-700",
+    medicine: "bg-pink-100 text-pink-700",
+    other: "bg-gray-100 text-gray-700",
   };
 
+  const TypeBadge = ({ t }: { t: string }) => (
+    <span
+      className={`${typeCls[t] ?? "bg-gray-100 text-gray-700"
+        } rounded-lg px-2.5 py-0.5 text-xs font-bold`}
+    >
+      {t}
+    </span>
+  );
+
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalBase, maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
-        <div style={modalHeader}>
+    <div
+      className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[2000] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-[20px] shadow-[0_24px_64px_rgba(15,118,110,0.18),0_4px_16px_rgba(0,0,0,0.1)] w-full max-w-[680px] max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-gradient-to-br from-teal-700 to-teal-500 px-6 py-5 rounded-t-[20px] flex items-center justify-between sticky top-0 z-10">
           <div>
-            <h2 style={{ margin: 0, color: "#fff", fontSize: 18, fontWeight: 800 }}>
+            <h2 className="m-0 text-white text-lg font-extrabold">
               Product Details
             </h2>
-            <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.7)", fontSize: 12 }}>
-              {product.name}
-            </p>
+            <p className="m-0 mt-0.5 text-white/70 text-xs">{product.name}</p>
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              border: "none",
-              borderRadius: 8,
-              color: "#fff",
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              fontSize: 18,
-              fontWeight: 700,
-            }}
+            className="bg-white/15 border-none rounded-lg text-white w-8 h-8 cursor-pointer text-lg font-bold hover:bg-white/25 transition-colors"
           >
             ×
           </button>
         </div>
 
-        <div style={{ padding: 24 }}>
-          <div style={sectionTitle}>Basic Info</div>
+        <div className="p-6">
+          <SectionTitle>Basic Info</SectionTitle>
           <InfoRow label="Name" value={product.name} />
           <InfoRow label="Type" value={<TypeBadge t={product.type} />} />
           <InfoRow label="Category" value={product.category?.name ?? "—"} />
           <InfoRow label="Supplier" value={product.supplier?.name ?? "None"} />
-          <InfoRow label="Status" value={
-            <span style={{ color: product.isActive ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
-              {product.isActive ? "Active" : "Inactive"}
-            </span>
-          } />
+          <InfoRow
+            label="Status"
+            value={
+              <span
+                className={`font-bold ${product.isActive ? "text-green-600" : "text-red-600"
+                  }`}
+              >
+                {product.isActive ? "Active" : "Inactive"}
+              </span>
+            }
+          />
           {product.description && (
             <InfoRow label="Description" value={product.description} />
           )}
 
-          {/* Variants */}
-          <div style={{ ...sectionTitle, marginTop: 16 }}>
-            Variants ({product.variants.length})
+          <div className="mt-4">
+            <SectionTitle>Variants ({product.variants.length})</SectionTitle>
           </div>
           {product.variants.map((v, i) => (
             <div
               key={v._id ?? i}
-              style={{
-                border: `1.5px solid ${TEAL_LIGHT}`,
-                borderRadius: 12,
-                padding: 14,
-                marginBottom: 12,
-                background: TEAL_BG,
-              }}
+              className="border-[1.5px] border-teal-100 rounded-xl p-3.5 mb-3 bg-teal-50"
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontWeight: 800, color: TEAL_DARK, fontSize: 13 }}>
-                  {v.sku}
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="font-extrabold text-teal-700 text-sm">
+                  Variant {i + 1}
                 </span>
                 <span
-                  style={{
-                    background: v.isActive ? "#dcfce7" : "#fee2e2",
-                    color: v.isActive ? "#16a34a" : "#dc2626",
-                    borderRadius: 8,
-                    padding: "2px 10px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
+                  className={`rounded-lg px-2.5 py-0.5 text-xs font-bold ${v.isActive
+                    ? "bg-green-100 text-green-700"
+                    : "bg-red-100 text-red-600"
+                    }`}
                 >
                   {v.isActive ? "Active" : "Inactive"}
                 </span>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 13 }}>
+              <div className="grid grid-cols-3 gap-2 text-sm">
                 <div>
-                  <div style={{ color: "#5eaaa0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Buy Price</div>
-                  <div style={{ color: "#0d4f4a", fontWeight: 700 }}>₹{v.price.buying}</div>
+                  <div className="text-teal-400 text-[11px] font-bold uppercase">
+                    Buy Price
+                  </div>
+                  <div className="text-teal-900 font-bold">₹{v.price.buying}</div>
                 </div>
                 <div>
-                  <div style={{ color: "#5eaaa0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>Sell Price</div>
-                  <div style={{ color: "#0d4f4a", fontWeight: 700 }}>₹{v.price.selling}</div>
+                  <div className="text-teal-400 text-[11px] font-bold uppercase">
+                    Sell Price
+                  </div>
+                  <div className="text-teal-900 font-bold">₹{v.price.selling}</div>
                 </div>
                 <div>
-                  <div style={{ color: "#5eaaa0", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>In Stock</div>
-                  <div style={{ color: "#0d4f4a", fontWeight: 700 }}>
+                  <div className="text-teal-400 text-[11px] font-bold uppercase">
+                    In Stock
+                  </div>
+                  <div className="text-teal-900 font-bold">
                     {v.quantity.inStock} {v.quantity.unit}
                   </div>
                 </div>
               </div>
 
               {v.attributes.length > 0 && (
-                <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {v.attributes.map((a, ai) => (
-                    <span key={ai} style={tagStyle}>
+                    <span
+                      key={ai}
+                      className="inline-flex items-center gap-1.5 bg-teal-100 text-teal-700 rounded-lg px-2.5 py-1 text-xs font-bold"
+                    >
                       {a.key}: {a.value}
                     </span>
                   ))}
                 </div>
               )}
 
-              {/* Existing images */}
               {v.images.length > 0 && (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                <div className="flex gap-2 flex-wrap mt-2.5">
                   {v.images.map((img, ii) => (
                     <img
                       key={ii}
                       src={img.url}
                       alt=""
-                      style={{
-                        width: 60,
-                        height: 60,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                        border: `1.5px solid ${TEAL_LIGHT}`,
-                      }}
+                      className="w-[60px] h-[60px] object-cover rounded-lg border-[1.5px] border-teal-100"
                     />
                   ))}
                 </div>
@@ -891,8 +738,11 @@ export function ViewProductModal({ open, onClose, product }: ViewProductModalPro
             </div>
           ))}
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
-            <button onClick={onClose} style={btnPrimary}>
+          <div className="flex justify-end mt-1">
+            <button
+              onClick={onClose}
+              className="bg-gradient-to-br from-teal-700 to-teal-500 text-white border-none rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:from-teal-800 hover:to-teal-600 transition-all"
+            >
               Close
             </button>
           </div>
@@ -924,62 +774,47 @@ export function DeleteProductModal({
   if (!open || !product) return null;
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[2000] flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div
-        style={{ ...modalBase, maxWidth: 420 }}
+        className="bg-white rounded-[20px] shadow-[0_24px_64px_rgba(15,118,110,0.18),0_4px_16px_rgba(0,0,0,0.1)] w-full max-w-[420px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={modalHeader}>
-          <h2 style={{ margin: 0, color: "#fff", fontSize: 18, fontWeight: 800 }}>
+        <div className="bg-gradient-to-br from-teal-700 to-teal-500 px-6 py-5 rounded-t-[20px] flex items-center justify-between">
+          <h2 className="m-0 text-white text-lg font-extrabold">
             Delete Product
           </h2>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              border: "none",
-              borderRadius: 8,
-              color: "#fff",
-              width: 32,
-              height: 32,
-              cursor: "pointer",
-              fontSize: 18,
-              fontWeight: 700,
-            }}
+            className="bg-white/15 border-none rounded-lg text-white w-8 h-8 cursor-pointer text-lg font-bold hover:bg-white/25 transition-colors"
           >
             ×
           </button>
         </div>
 
-        <div style={{ padding: 24 }}>
-          <div
-            style={{
-              textAlign: "center",
-              fontSize: 48,
-              marginBottom: 16,
-            }}
-          >
-            🗑️
-          </div>
-          <p style={{ textAlign: "center", color: "#0d4f4a", fontSize: 15, marginBottom: 6, fontWeight: 700 }}>
+        <div className="p-6">
+          <div className="text-center text-5xl mb-4">🗑️</div>
+          <p className="text-center text-teal-900 text-[15px] mb-1.5 font-bold">
             Are you sure you want to delete?
           </p>
-          <p style={{ textAlign: "center", color: "#5eaaa0", fontSize: 13, marginBottom: 24 }}>
-            <strong style={{ color: TEAL_DARK }}>{product.name}</strong> will be soft-deleted
-            and hidden from listings.
+          <p className="text-center text-teal-400 text-sm mb-6">
+            <strong className="text-teal-700">{product.name}</strong> will be
+            soft-deleted and hidden from listings.
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button onClick={onClose} style={btnSecondary}>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={onClose}
+              className="bg-white text-teal-600 border-[1.5px] border-teal-100 rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:bg-teal-50 transition-colors"
+            >
               Cancel
             </button>
             <button
               onClick={onConfirm}
               disabled={loading}
-              style={{
-                ...btnPrimary,
-                background: "linear-gradient(135deg, #dc2626, #ef4444)",
-                opacity: loading ? 0.7 : 1,
-              }}
+              className={`bg-gradient-to-br from-red-600 to-red-500 text-white border-none rounded-xl px-5 py-2.5 text-sm font-bold cursor-pointer hover:from-red-700 hover:to-red-600 transition-all ${loading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
             >
               {loading ? "Deleting…" : "Delete Product"}
             </button>

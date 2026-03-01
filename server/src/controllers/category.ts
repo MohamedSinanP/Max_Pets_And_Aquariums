@@ -31,7 +31,6 @@ export const categoryController = {
       slug,
       parent: parent || null,
       type,
-      icon,
       description,
     });
 
@@ -48,7 +47,7 @@ export const categoryController = {
   // ─────────────────────────────────────────
   update: async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { name, parent, type, icon, description } = req.body;
+    const { name, parent, type, isActive, description } = req.body;
 
     const category = await Category.findById(id);
     if (!category) {
@@ -64,8 +63,8 @@ export const categoryController = {
 
     if (parent !== undefined) category.parent = parent;
     if (type) category.type = type;
-    if (icon !== undefined) category.icon = icon;
     if (description !== undefined) category.description = description;
+    if (isActive !== undefined) category.isActive = isActive;
 
     await category.save();
 

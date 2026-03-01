@@ -28,11 +28,6 @@ const CategorySchema = new Schema<ICategory>(
       required: [true, "Category type is required"],
     },
 
-    icon: {
-      type: String,
-      trim: true,
-    },
-
     description: {
       type: String,
       trim: true,

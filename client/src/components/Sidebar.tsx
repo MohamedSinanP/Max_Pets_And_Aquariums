@@ -129,16 +129,12 @@ const HamburgerIcon = () => (
    NAV CONFIG
 ────────────────────────────────────── */
 const navItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: <GridIcon />, section: "MAIN" },
-  { id: "categories", label: "Categories", icon: <TagIcon />, section: "CATALOGUE" },
-  { id: "products", label: "Products", icon: <BoxIcon />, section: "CATALOGUE" },
-  { id: "orders", label: "Orders", icon: <ShoppingBagIcon />, section: "CATALOGUE" },
-  { id: "customers", label: "Customers", icon: <UsersIcon />, section: "PEOPLE" },
-  { id: "analytics", label: "Analytics", icon: <BarChartIcon />, section: "PEOPLE" },
-  { id: "settings", label: "Settings", icon: <SettingsIcon />, section: "SYSTEM" },
+  { id: "dashboard", label: "Dashboard", icon: <GridIcon /> },
+  { id: "categories", label: "Categories", icon: <TagIcon /> },
+  { id: "products", label: "Products", icon: <BoxIcon /> },
+  { id: "orders", label: "Orders", icon: <ShoppingBagIcon /> },
+  { id: "settings", label: "Settings", icon: <SettingsIcon /> },
 ];
-
-const sections = ["MAIN", "CATALOGUE", "PEOPLE", "SYSTEM"] as const;
 
 /* ──────────────────────────────────────
    SIDEBAR
@@ -225,7 +221,7 @@ export default function Sidebar({
           display: "flex",
           flexDirection: "column",
           transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          position: isMobile ? "fixed" : "sticky",
+          position: isMobile ? "fixed" : "relative",
           top: 0,
           left: isMobile ? (mobileOpen ? 0 : -WIDTH - 10) : 0,
           zIndex: 1000,
@@ -383,159 +379,91 @@ export default function Sidebar({
             scrollbarWidth: "none",
           }}
         >
-          {sections.map((section) => {
-            const items = navItems.filter((n) => n.section === section);
-            if (!items.length) return null;
+          {navItems.map((item) => {
+            const isActive = activePage === item.id;
+            const isHovered = hoveredItem === item.id;
 
             return (
-              <div key={section} style={{ marginBottom: 6 }}>
-                {/* Section label */}
-                {!collapsed && (
-                  <div
+              <button
+                key={item.id}
+                onClick={() => {
+                  onNavigate(item.id);
+                  if (isMobile) setMobileOpen(false);
+                }}
+                onMouseEnter={() => setHoveredItem(item.id)}
+                onMouseLeave={() => setHoveredItem(null)}
+                title={collapsed ? item.label : undefined}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 11,
+                  padding: collapsed ? "11px 0" : "10px 12px",
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  background: isActive
+                    ? "rgba(255,255,255,0.18)"
+                    : isHovered
+                      ? "rgba(255,255,255,0.09)"
+                      : "transparent",
+                  border: "none",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
+                  marginBottom: 6,
+                  transition: "all 0.18s ease",
+                  position: "relative",
+                  textAlign: "left",
+                  boxShadow: isActive ? "0 2px 12px rgba(0,0,0,0.12)" : "none",
+                  outline: "none",
+                }}
+              >
+                {isActive && (
+                  <span
                     style={{
-                      fontSize: 9,
-                      fontWeight: 800,
-                      color: "rgba(255,255,255,0.35)",
-                      letterSpacing: "1.2px",
-                      textTransform: "uppercase",
-                      padding: "10px 8px 6px",
-                      fontFamily: "'DM Sans', sans-serif",
-                      userSelect: "none",
-                    }}
-                  >
-                    {section}
-                  </div>
-                )}
-
-                {collapsed && section !== "MAIN" && (
-                  <div
-                    style={{
-                      height: 1,
-                      background: "rgba(255,255,255,0.1)",
-                      margin: "8px 12px",
+                      position: "absolute",
+                      left: 0,
+                      top: "20%",
+                      height: "60%",
+                      width: 3,
+                      background: "#fff",
+                      borderRadius: "0 3px 3px 0",
                     }}
                   />
                 )}
 
-                {items.map((item) => {
-                  const isActive = activePage === item.id;
-                  const isHovered = hoveredItem === item.id;
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 34,
+                    height: 34,
+                    borderRadius: 9,
+                    background: isActive
+                      ? "rgba(255,255,255,0.18)"
+                      : isHovered
+                        ? "rgba(255,255,255,0.1)"
+                        : "transparent",
+                    flexShrink: 0,
+                    transition: "background 0.18s",
+                  }}
+                >
+                  {item.icon}
+                </span>
 
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        onNavigate(item.id);
-                        if (isMobile) setMobileOpen(false);
-                      }}
-                      onMouseEnter={() => setHoveredItem(item.id)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                      title={collapsed ? item.label : undefined}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 11,
-                        padding: collapsed ? "11px 0" : "10px 12px",
-                        justifyContent: collapsed ? "center" : "flex-start",
-                        background: isActive
-                          ? "rgba(255,255,255,0.18)"
-                          : isHovered
-                            ? "rgba(255,255,255,0.09)"
-                            : "transparent",
-                        border: "none",
-                        borderRadius: 10,
-                        cursor: "pointer",
-                        color: isActive ? "#fff" : "rgba(255,255,255,0.7)",
-                        marginBottom: 2,
-                        transition: "all 0.18s ease",
-                        position: "relative",
-                        textAlign: "left",
-                        boxShadow: isActive ? "0 2px 12px rgba(0,0,0,0.12)" : "none",
-                        outline: "none",
-                      }}
-                    >
-                      {/* Active left bar */}
-                      {isActive && (
-                        <span
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            top: "20%",
-                            height: "60%",
-                            width: 3,
-                            background: "#fff",
-                            borderRadius: "0 3px 3px 0",
-                          }}
-                        />
-                      )}
-
-                      {/* Icon container */}
-                      <span
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: 34,
-                          height: 34,
-                          borderRadius: 9,
-                          background: isActive
-                            ? "rgba(255,255,255,0.18)"
-                            : isHovered
-                              ? "rgba(255,255,255,0.1)"
-                              : "transparent",
-                          flexShrink: 0,
-                          transition: "background 0.18s",
-                        }}
-                      >
-                        {item.icon}
-                      </span>
-
-                      {/* Label + badge */}
-                      {!collapsed && (
-                        <>
-                          <span
-                            style={{
-                              fontSize: 14,
-                              fontWeight: isActive ? 700 : 500,
-                              fontFamily: "'DM Sans', sans-serif",
-                              flex: 1,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {item.label}
-                          </span>
-
-                          {item.badge != null && (
-                            <span
-                              style={{
-                                background: isActive ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.2)",
-                                color: isActive ? "#0f766e" : "#fff",
-                                borderRadius: 20,
-                                padding: "1px 8px",
-                                fontSize: 11,
-                                fontWeight: 800,
-                                flexShrink: 0,
-                                fontFamily: "'DM Sans', sans-serif",
-                              }}
-                            >
-                              {item.badge}
-                            </span>
-                          )}
-
-                          {isActive && !item.badge && (
-                            <span style={{ color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>
-                              <ChevronRight />
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+                {!collapsed && (
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: isActive ? 700 : 500,
+                      fontFamily: "'DM Sans', sans-serif",
+                      flex: 1,
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </button>
             );
           })}
         </nav>

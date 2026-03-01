@@ -15,12 +15,7 @@ import {
   ViewProductModal,
   DeleteProductModal,
 } from "../components/ProductModals";
-
-/* ─── Color palette (teal + white) ─── */
-const TEAL = "#0d9488";
-const TEAL_DARK = "#0f766e";
-const TEAL_LIGHT = "#ccfbf1";
-const TEAL_BG = "#f0fdfa";
+import { getCategories } from "../apis/category";
 
 /* ─── Icon helpers ─── */
 const EyeIcon = () => (
@@ -60,32 +55,21 @@ const RefreshIcon = () => (
   </svg>
 );
 
-/* ─── Type / status badge helpers ─── */
+/* ─── Type / status badges ─── */
 type ProductType = "animal" | "food" | "accessory" | "medicine" | "other";
 
-const TYPE_COLORS: Record<ProductType, [string, string]> = {
-  food: ["#dcfce7", "#16a34a"],
-  animal: ["#dbeafe", "#1d4ed8"],
-  accessory: ["#fef9c3", "#ca8a04"],
-  medicine: ["#fce7f3", "#be185d"],
-  other: ["#f3f4f6", "#374151"],
+const typeCls: Record<ProductType, string> = {
+  food: "bg-green-100 text-green-700",
+  animal: "bg-blue-100 text-blue-700",
+  accessory: "bg-yellow-100 text-yellow-700",
+  medicine: "bg-pink-100 text-pink-700",
+  other: "bg-gray-100 text-gray-700",
 };
 
 function TypeBadge({ type }: { type: string }) {
-  const [bg, fg] = TYPE_COLORS[type as ProductType] ?? ["#f3f4f6", "#374151"];
+  const cls = typeCls[type as ProductType] ?? "bg-gray-100 text-gray-700";
   return (
-    <span
-      style={{
-        background: bg,
-        color: fg,
-        borderRadius: 8,
-        padding: "3px 10px",
-        fontSize: 12,
-        fontWeight: 700,
-        fontFamily: "'DM Sans', sans-serif",
-        whiteSpace: "nowrap",
-      }}
-    >
+    <span className={`${cls} rounded-lg px-2.5 py-0.5 text-xs font-bold whitespace-nowrap`}>
       {type}
     </span>
   );
@@ -94,15 +78,8 @@ function TypeBadge({ type }: { type: string }) {
 function StatusBadge({ active }: { active: boolean }) {
   return (
     <span
-      style={{
-        background: active ? "#dcfce7" : "#fee2e2",
-        color: active ? "#16a34a" : "#dc2626",
-        borderRadius: 8,
-        padding: "3px 10px",
-        fontSize: 12,
-        fontWeight: 700,
-        fontFamily: "'DM Sans', sans-serif",
-      }}
+      className={`rounded-lg px-2.5 py-0.5 text-xs font-bold ${active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"
+        }`}
     >
       {active ? "Active" : "Inactive"}
     </span>
@@ -144,8 +121,8 @@ const columns: Column<ProductRow>[] = [
     sortable: true,
     render: (row) => (
       <div>
-        <div style={{ fontWeight: 700, color: "#0d4f4a", fontSize: 14 }}>{row.name}</div>
-        <div style={{ fontSize: 11, color: "#5eaaa0", marginTop: 2 }}>{row.category}</div>
+        <div className="font-bold text-teal-900 text-sm">{row.name}</div>
+        <div className="text-[11px] text-teal-400 mt-0.5">{row.category}</div>
       </div>
     ),
   },
@@ -163,16 +140,7 @@ const columns: Column<ProductRow>[] = [
     label: "Variants",
     align: "center",
     render: (row) => (
-      <span
-        style={{
-          background: TEAL_LIGHT,
-          color: TEAL_DARK,
-          borderRadius: 8,
-          padding: "3px 12px",
-          fontWeight: 700,
-          fontSize: 13,
-        }}
-      >
+      <span className="bg-teal-100 text-teal-700 rounded-lg px-3 py-0.5 font-bold text-sm">
         {row.variants}
       </span>
     ),
@@ -183,7 +151,7 @@ const columns: Column<ProductRow>[] = [
     align: "center",
     sortable: true,
     render: (row) => (
-      <span style={{ fontWeight: 700, color: "#0d4f4a", fontSize: 14 }}>
+      <span className="font-bold text-teal-900 text-sm">
         ₹{row.minPrice.toFixed(2)}
       </span>
     ),
@@ -195,11 +163,12 @@ const columns: Column<ProductRow>[] = [
     sortable: true,
     render: (row) => (
       <span
-        style={{
-          color: row.stock < 10 ? "#dc2626" : row.stock < 30 ? "#ca8a04" : "#16a34a",
-          fontWeight: 700,
-          fontSize: 14,
-        }}
+        className={`font-bold text-sm ${row.stock < 10
+            ? "text-red-600"
+            : row.stock < 30
+              ? "text-yellow-600"
+              : "text-green-600"
+          }`}
       >
         {row.stock}
       </span>
@@ -213,42 +182,20 @@ const columns: Column<ProductRow>[] = [
   },
 ];
 
-/* ─── Filter bar styles ─── */
-const filterInput: React.CSSProperties = {
-  padding: "9px 14px",
-  border: `1.5px solid ${TEAL_LIGHT}`,
-  borderRadius: 10,
-  fontSize: 13,
-  color: "#0d4f4a",
-  background: "#fff",
-  outline: "none",
-  fontFamily: "'DM Sans', sans-serif",
-  cursor: "pointer",
-};
-
 /* ════════════════════════════════════════
    PRODUCTS PAGE
 ════════════════════════════════════════ */
 
-// NOTE: Pass real category/supplier lists from parent or fetch inline.
-// For a standalone page they can be fetched here.
-
-interface ProductsPageProps {
-  categories?: { _id: string; name: string }[];
-  suppliers?: { _id: string; name: string }[];
-}
-
-export default function ProductsPage({
-  categories = [],
-  suppliers = [],
-}: ProductsPageProps) {
+export default function ProductsPage() {
   /* ── State ── */
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
-  // Server-side pagination / filter
   const [page, setPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [search, setSearch] = useState("");
@@ -256,8 +203,8 @@ export default function ProductsPage({
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("true");
   const [showFilters, setShowFilters] = useState(false);
+  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
 
-  // Modals
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
@@ -279,7 +226,6 @@ export default function ProductsPage({
       if (filterCategory) params.category = filterCategory;
 
       const res = await getProducts(params);
-
       if (res.success) {
         setRows((res.data as Product[]).map(toRow));
         setTotalRecords(res.pagination?.total ?? (res.data as any[]).length);
@@ -291,9 +237,19 @@ export default function ProductsPage({
     }
   }, [page, search, filterType, filterCategory, filterStatus]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  const fetchMetaData = useCallback(async () => {
+    try {
+      const [catRes] = await Promise.all([getCategories({ limit: 100 })]);
+      setCategories(
+        catRes.data.results.map((c: any) => ({ _id: c._id, name: c.name }))
+      );
+    } catch (err) {
+      console.error("Failed to fetch categories");
+    }
+  }, []);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => { fetchMetaData(); }, [fetchMetaData]);
 
   /* ── Toast ── */
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -301,7 +257,7 @@ export default function ProductsPage({
     setTimeout(() => setToast(null), 3500);
   };
 
-  /* ── Actions ── */
+  /* ── CRUD handlers ── */
   const handleCreate = async (
     payload: CreateProductPayload | UpdateProductPayload,
     imageFiles: File[][]
@@ -360,8 +316,8 @@ export default function ProductsPage({
       icon: <EyeIcon />,
       onClick: (row) => setViewProduct(row._raw),
       color: "#5eaaa0",
-      hoverColor: TEAL,
-      hoverBg: TEAL_BG,
+      hoverColor: "#0d9488",
+      hoverBg: "#f0fdfa",
     },
     {
       label: "Edit",
@@ -383,63 +339,31 @@ export default function ProductsPage({
 
   /* ── Header action ── */
   const headerAction: ReactNode = (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+    <div className="flex gap-2 items-center flex-wrap">
+      {/* Filter toggle */}
       <button
         onClick={() => setShowFilters((p) => !p)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "9px 14px",
-          border: `1.5px solid ${showFilters ? TEAL : TEAL_LIGHT}`,
-          borderRadius: 10,
-          background: showFilters ? TEAL_BG : "#fff",
-          color: showFilters ? TEAL_DARK : "#5eaaa0",
-          cursor: "pointer",
-          fontSize: 13,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 700,
-        }}
+        className={`flex items-center gap-1.5 px-3.5 py-2 border-[1.5px] rounded-xl cursor-pointer text-sm font-bold transition-colors ${showFilters
+            ? "border-teal-500 bg-teal-50 text-teal-700"
+            : "border-teal-100 bg-white text-teal-400 hover:bg-teal-50"
+          }`}
       >
         <FilterIcon />
         Filters
       </button>
+
+      {/* Refresh */}
       <button
         onClick={fetchProducts}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "9px 14px",
-          border: `1.5px solid ${TEAL_LIGHT}`,
-          borderRadius: 10,
-          background: "#fff",
-          color: "#5eaaa0",
-          cursor: "pointer",
-          fontSize: 13,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 700,
-        }}
+        className="flex items-center gap-1.5 px-3.5 py-2 border-[1.5px] border-teal-100 rounded-xl bg-white text-teal-400 cursor-pointer text-sm font-bold hover:bg-teal-50 transition-colors"
       >
         <RefreshIcon />
       </button>
+
+      {/* Add Product */}
       <button
         onClick={() => setCreateOpen(true)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "9px 16px",
-          border: "none",
-          borderRadius: 10,
-          background: `linear-gradient(135deg, ${TEAL_DARK}, ${TEAL})`,
-          color: "#fff",
-          cursor: "pointer",
-          fontSize: 13,
-          fontFamily: "'DM Sans', sans-serif",
-          fontWeight: 700,
-          boxShadow: "0 2px 8px rgba(13,148,136,0.25)",
-        }}
+        className="flex items-center gap-1.5 px-4 py-2 border-none rounded-xl bg-gradient-to-br from-teal-700 to-teal-500 text-white cursor-pointer text-sm font-bold shadow-[0_2px_8px_rgba(13,148,136,0.25)] hover:from-teal-800 hover:to-teal-600 transition-all"
       >
         <PlusIcon />
         Add Product
@@ -447,37 +371,19 @@ export default function ProductsPage({
     </div>
   );
 
+  /* ── Filter select shared class ── */
+  const filterSelectCls =
+    "px-3.5 py-2 border-[1.5px] border-teal-100 rounded-xl text-sm text-teal-900 bg-white outline-none focus:border-teal-400 cursor-pointer transition-all font-[inherit]";
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #f0fdfa 0%, #ffffff 100%)",
-        padding: 24,
-        fontFamily: "'DM Sans', sans-serif",
-        boxSizing: "border-box",
-      }}
-    >
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-white p-6 box-border">
       {/* Toast */}
       {toast && (
         <div
-          style={{
-            position: "fixed",
-            top: 20,
-            right: 20,
-            zIndex: 9999,
-            background: toast.type === "success" ? "#f0fdfa" : "#fef2f2",
-            border: `1.5px solid ${toast.type === "success" ? TEAL_LIGHT : "#fecaca"}`,
-            color: toast.type === "success" ? TEAL_DARK : "#dc2626",
-            padding: "12px 20px",
-            borderRadius: 12,
-            fontSize: 14,
-            fontWeight: 700,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.1)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            maxWidth: 340,
-          }}
+          className={`fixed top-5 right-5 z-[9999] px-5 py-3 rounded-xl text-sm font-bold shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex items-center gap-2 max-w-[340px] border-[1.5px] ${toast.type === "success"
+              ? "bg-teal-50 border-teal-100 text-teal-700"
+              : "bg-red-50 border-red-200 text-red-600"
+            }`}
         >
           <span>{toast.type === "success" ? "✓" : "✕"}</span>
           {toast.msg}
@@ -485,46 +391,29 @@ export default function ProductsPage({
       )}
 
       {/* Page Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1
-          style={{
-            margin: 0,
-            fontSize: 24,
-            fontWeight: 900,
-            color: "#0d4f4a",
-            letterSpacing: "-0.5px",
-          }}
-        >
+      <div className="mb-5">
+        <h1 className="m-0 text-2xl font-black text-teal-900 tracking-tight">
           Products
         </h1>
-        <p style={{ margin: "4px 0 0", color: "#5eaaa0", fontSize: 14 }}>
+        <p className="m-0 mt-1 text-teal-400 text-sm">
           Manage your product catalogue
         </p>
       </div>
 
       {/* Filter Bar */}
       {showFilters && (
-        <div
-          style={{
-            background: "#fff",
-            border: `1.5px solid ${TEAL_LIGHT}`,
-            borderRadius: 14,
-            padding: "16px 20px",
-            marginBottom: 16,
-            display: "flex",
-            gap: 12,
-            flexWrap: "wrap",
-            alignItems: "flex-end",
-          }}
-        >
+        <div className="bg-white border-[1.5px] border-teal-100 rounded-2xl px-5 py-4 mb-4 flex gap-3 flex-wrap items-end">
           <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: TEAL_DARK, marginBottom: 6, textTransform: "uppercase" }}>
+            <label className="block text-[11px] font-bold text-teal-700 mb-1.5 uppercase tracking-wide">
               Type
             </label>
             <select
-              style={filterInput}
+              className={filterSelectCls}
               value={filterType}
-              onChange={(e) => { setFilterType(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setFilterType(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">All Types</option>
               <option value="food">Food</option>
@@ -534,47 +423,54 @@ export default function ProductsPage({
               <option value="other">Other</option>
             </select>
           </div>
+
           <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: TEAL_DARK, marginBottom: 6, textTransform: "uppercase" }}>
+            <label className="block text-[11px] font-bold text-teal-700 mb-1.5 uppercase tracking-wide">
               Category
             </label>
             <select
-              style={filterInput}
+              className={filterSelectCls}
               value={filterCategory}
-              onChange={(e) => { setFilterCategory(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
-                <option key={c._id} value={c._id}>{c.name}</option>
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
+
           <div>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: TEAL_DARK, marginBottom: 6, textTransform: "uppercase" }}>
+            <label className="block text-[11px] font-bold text-teal-700 mb-1.5 uppercase tracking-wide">
               Status
             </label>
             <select
-              style={filterInput}
+              className={filterSelectCls}
               value={filterStatus}
-              onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
             >
               <option value="true">Active</option>
               <option value="false">Inactive</option>
               <option value="">All</option>
             </select>
           </div>
+
           <button
-            onClick={() => { setFilterType(""); setFilterCategory(""); setFilterStatus("true"); setPage(1); }}
-            style={{
-              padding: "9px 14px",
-              border: `1.5px solid ${TEAL_LIGHT}`,
-              borderRadius: 10,
-              background: "#fff",
-              color: "#5eaaa0",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 700,
+            onClick={() => {
+              setFilterType("");
+              setFilterCategory("");
+              setFilterStatus("true");
+              setPage(1);
             }}
+            className="px-3.5 py-2 border-[1.5px] border-teal-100 rounded-xl bg-white text-teal-400 cursor-pointer text-sm font-bold hover:bg-teal-50 transition-colors"
           >
             Clear
           </button>
@@ -594,7 +490,10 @@ export default function ProductsPage({
         totalRecords={totalRecords}
         page={page}
         onPageChange={setPage}
-        onSearch={(q) => { setSearch(q); setPage(1); }}
+        onSearch={(q) => {
+          setSearch(q);
+          setPage(1);
+        }}
         searchPlaceholder="Search products…"
         headerAction={headerAction}
         mobileVisibleKeys={["name", "type", "minPrice", "stock", "status"]}
@@ -606,26 +505,21 @@ export default function ProductsPage({
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreate}
         categories={categories}
-        suppliers={suppliers}
         loading={actionLoading}
       />
-
       <ProductFormModal
         open={!!editProduct}
         onClose={() => setEditProduct(null)}
         onSubmit={handleEdit}
         initialData={editProduct}
         categories={categories}
-        suppliers={suppliers}
         loading={actionLoading}
       />
-
       <ViewProductModal
         open={!!viewProduct}
         onClose={() => setViewProduct(null)}
         product={viewProduct}
       />
-
       <DeleteProductModal
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}

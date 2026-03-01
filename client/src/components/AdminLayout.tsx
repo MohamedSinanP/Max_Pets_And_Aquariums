@@ -8,26 +8,13 @@ const AdminLayout = () => {
   const activePage = location.pathname.split("/")[1] || "dashboard";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        width: "100%",
-        overflow: "hidden",
-      }}
-    >
+    <div className="flex h-screen w-full">
       <Sidebar
         activePage={activePage}
         onNavigate={(page) => navigate(`/${page}`)}
       />
 
-      <div
-        style={{
-          flex: 1,
-          minWidth: 0,
-          width: "100%",
-        }}
-      >
+      <div className="flex-1 min-w-0 h-screen overflow-y-auto">
         <Outlet />
       </div>
     </div>

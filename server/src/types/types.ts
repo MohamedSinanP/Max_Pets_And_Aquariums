@@ -5,7 +5,6 @@ export interface ICategory {
   slug: string;
   parent: Types.ObjectId | null;
   type: "living" | "non-living";
-  icon?: string;
   description?: string;
   isActive: boolean;
   createdAt: Date;
@@ -51,10 +50,11 @@ export interface IPrice {
 /* ─────────────────────────────
    Quantity
 ───────────────────────────── */
+export type BaseUnit = "g" | "ml" | "pcs";
+
 export interface IQuantity {
   inStock: number;
-  minThreshold: number;
-  unit: string;
+  baseUnit: BaseUnit;
 }
 
 /* ─────────────────────────────
@@ -68,6 +68,7 @@ export interface IVariant {
   attributes: IAttribute[];
 
   price: IPrice;
+  pricePerBaseUnit?: number;
   quantity: IQuantity;
 
   images: IImage[];       //  moved here
