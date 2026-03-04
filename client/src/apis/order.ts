@@ -8,7 +8,8 @@ export type OrderStatus = "pending" | "confirmed" | "ready" | "delivered" | "can
 export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
 export type PaymentMethod = "cash" | "card" | "online" | "other";
 export type SellMode = "packaged" | "loose";
-export type ItemUnit = "pcs" | "g" | "ml";
+export type BaseUnit = "mg" | "ml" | "pcs";
+export type PriceUnit = "kg" | "liter" | "pcs";
 
 export interface OrderCustomer {
   name: string;
@@ -18,11 +19,21 @@ export interface OrderCustomer {
 
 export interface OrderItem {
   _id?: string;
-  product: string | { _id: string; name: string; image?: string; category?: string };
-  variant: string;
+  product: string | { _id: string; name: string; image?: string; category?: { name: string } | null };
+  variant: string | {
+    _id: string;
+    sku?: string;
+    sellMode: SellMode;
+    attributes: Record<string, string>;
+    price: { buying: number; selling: number };
+    priceUnit: PriceUnit;
+    quantity: { inStock: number; baseUnit: BaseUnit };
+    isActive: boolean;
+  };
   quantity: number;
-  unit: ItemUnit;
+  unit: BaseUnit;
   sellMode: SellMode;
+  priceUnit: PriceUnit;
   unitPrice: number;
   subtotal: number;
 }
@@ -39,7 +50,6 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   orderStatus: OrderStatus;
-  receiptPrinted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,8 +80,8 @@ export interface GetOrdersParams {
   search?: string;
   orderStatus?: OrderStatus | "";
   paymentStatus?: PaymentStatus | "";
-  from?: string; // ISO date string
-  to?: string;   // ISO date string
+  from?: string;
+  to?: string;
   phone?: string;
 }
 
@@ -83,8 +93,10 @@ export interface CreateOrderItemPayload {
   product: string;
   variant: string;
   quantity: number;
-  unit: ItemUnit;
-  sellMode: SellMode;
+  // optional — backend derives from variant, but send for validation
+  unit?: BaseUnit;
+  sellMode?: SellMode;
+  priceUnit?: PriceUnit;
 }
 
 export interface CreateOrderPayload {
@@ -115,6 +127,31 @@ const toQueryParams = (params?: GetOrdersParams) => {
   if (params.to) q.to = params.to;
   if (params.phone?.trim()) q.phone = params.phone.trim();
   return q;
+};
+
+/** Format display unit label based on sellMode + units */
+export const formatQuantityDisplay = (
+  qty: number,
+  unit: BaseUnit,
+  sellMode: SellMode,
+  priceUnit: PriceUnit
+): string => {
+  if (sellMode === "packaged" || unit === "pcs") return `${qty} pcs`;
+  if (unit === "mg") {
+    if (qty >= 1_000_000) return `${(qty / 1_000_000).toFixed(2)} kg`;
+    if (qty >= 1000) return `${(qty / 1000).toFixed(0)} g`;
+    return `${qty} mg`;
+  }
+  if (unit === "ml") {
+    if (qty >= 1000) return `${(qty / 1000).toFixed(2)} L`;
+    return `${qty} ml`;
+  }
+  return `${qty} ${unit}`;
+};
+
+/** Format unit price label */
+export const formatUnitPriceDisplay = (unitPrice: number, priceUnit: PriceUnit): string => {
+  return `₹${unitPrice.toFixed(2)} / ${priceUnit}`;
 };
 
 /* =========================

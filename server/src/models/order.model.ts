@@ -1,5 +1,59 @@
 import { Schema, model, Document, Types } from "mongoose";
-import { ICustomer, IOrder, IOrderItem } from "../types/types";
+
+/* ─────────────────────────────
+   TYPES (Order)
+───────────────────────────── */
+
+export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
+export type OrderStatus = "pending" | "confirmed" | "ready" | "delivered" | "cancelled";
+export type PaymentMethod = "cash" | "card" | "online" | "other";
+
+// ✅ Align with Product schema
+export type SellMode = "packaged" | "loose";
+export type BaseUnit = "mg" | "ml" | "pcs";
+export type PriceUnit = "kg" | "liter" | "pcs";
+
+/* ─────────────────────────────
+   Interfaces
+───────────────────────────── */
+
+export interface IOrderItem {
+  product: Types.ObjectId;
+  variant: Types.ObjectId;
+
+  quantity: number;
+  unit: BaseUnit;
+  sellMode: SellMode;
+
+  priceUnit: PriceUnit;
+
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface ICustomer {
+  name: string;
+  phone: string;
+  email?: string | null;
+}
+
+export interface IOrder extends Document {
+  orderNumber: string; // Human-readable e.g. "ORD-20240315-001"
+  customer: ICustomer | null;
+  items: IOrderItem[];
+  totalAmount: number;
+  discount?: number;
+  finalAmount: number;
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
+  orderStatus: OrderStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/* ─────────────────────────────
+   Schemas
+───────────────────────────── */
 
 const OrderItemSchema = new Schema<IOrderItem>(
   {
@@ -20,15 +74,23 @@ const OrderItemSchema = new Schema<IOrderItem>(
       min: 0.001,
     },
 
+    // ✅ UPDATED: align with Product baseUnit
     unit: {
       type: String,
-      enum: ["pcs", "g", "ml"],
+      enum: ["mg", "ml", "pcs"],
       required: true,
     },
 
     sellMode: {
       type: String,
       enum: ["packaged", "loose"],
+      required: true,
+    },
+
+    // ✅ NEW: align with Product priceUnit
+    priceUnit: {
+      type: String,
+      enum: ["kg", "liter", "pcs"],
       required: true,
     },
 
@@ -41,6 +103,7 @@ const OrderItemSchema = new Schema<IOrderItem>(
     subtotal: {
       type: Number,
       required: true,
+      min: 0,
     },
   },
   { _id: true }
@@ -70,22 +133,17 @@ const CustomerSchema = new Schema<ICustomer>(
 
 const OrderSchema = new Schema<IOrder>(
   {
-    // Auto-generated human-readable order number
     orderNumber: {
       type: String,
       unique: true,
     },
 
-    // Embedded customer info — not a ref, intentional
-    // Reason: customers here are walk-in, no account system needed
-    // If you add customer accounts later, add a customer ref alongside this
     customer: {
       type: CustomerSchema,
       required: false,
       default: null,
     },
 
-    // Array of ordered items — each has a frozen price snapshot
     items: {
       type: [OrderItemSchema],
       required: true,
@@ -95,21 +153,18 @@ const OrderSchema = new Schema<IOrder>(
       },
     },
 
-    // Sum of all item subtotals (before discount)
     totalAmount: {
       type: Number,
       required: true,
       min: [0, "Total amount cannot be negative"],
     },
 
-    // Discount applied in currency value (not percentage)
     discount: {
       type: Number,
       default: 0,
       min: [0, "Discount cannot be negative"],
     },
 
-    // totalAmount - discount
     finalAmount: {
       type: Number,
       required: true,
@@ -132,14 +187,7 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       enum: ["pending", "confirmed", "ready", "delivered", "cancelled"],
       default: "pending",
-    },
-
-    // Track if receipt was printed for this order
-    // Used by the print button on the frontend
-    receiptPrinted: {
-      type: Boolean,
-      default: false,
-    },
+    }
   },
   {
     timestamps: true,
@@ -148,12 +196,14 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
+/* ─────────────────────────────
+   Indexes
+───────────────────────────── */
 
 OrderSchema.index({ orderNumber: 1 });
 OrderSchema.index({ orderStatus: 1 });
 OrderSchema.index({ paymentStatus: 1 });
-OrderSchema.index({ handledBy: 1 });
-OrderSchema.index({ createdAt: -1 }); // Most recent orders first
-OrderSchema.index({ "customer.phone": 1 }); // Fast customer lookup by phone
+OrderSchema.index({ createdAt: -1 });
+OrderSchema.index({ "customer.phone": 1 });
 
 export const Order = model<IOrder>("Order", OrderSchema);

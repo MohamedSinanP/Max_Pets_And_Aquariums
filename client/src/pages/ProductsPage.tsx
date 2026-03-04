@@ -92,7 +92,6 @@ interface ProductRow {
   name: string;
   type: string;
   category: string;
-  supplier: string;
   variants: number;
   minPrice: number;
   stock: number;
@@ -105,9 +104,10 @@ const toRow = (p: Product): ProductRow => ({
   name: p.name,
   type: p.type,
   category: p.category?.name ?? "—",
-  supplier: p.supplier?.name ?? "None",
   variants: p.variants.length,
-  minPrice: Math.min(...p.variants.map((v) => v.price.selling)),
+  minPrice: p.variants.length
+    ? Math.min(...p.variants.map((v) => v.price.selling))
+    : 0,
   stock: p.variants.reduce((acc, v) => acc + v.quantity.inStock, 0),
   status: p.isActive,
   _raw: p,
@@ -130,10 +130,6 @@ const columns: Column<ProductRow>[] = [
     key: "type",
     label: "Type",
     render: (row) => <TypeBadge type={row.type} />,
-  },
-  {
-    key: "supplier",
-    label: "Supplier",
   },
   {
     key: "variants",
@@ -164,10 +160,10 @@ const columns: Column<ProductRow>[] = [
     render: (row) => (
       <span
         className={`font-bold text-sm ${row.stock < 10
-            ? "text-red-600"
-            : row.stock < 30
-              ? "text-yellow-600"
-              : "text-green-600"
+          ? "text-red-600"
+          : row.stock < 30
+            ? "text-yellow-600"
+            : "text-green-600"
           }`}
       >
         {row.stock}
@@ -182,9 +178,9 @@ const columns: Column<ProductRow>[] = [
   },
 ];
 
-/* ════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════
    PRODUCTS PAGE
-════════════════════════════════════════ */
+════════════════════════════════════════════════════════════ */
 
 export default function ProductsPage() {
   /* ── State ── */
@@ -203,7 +199,7 @@ export default function ProductsPage() {
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("true");
   const [showFilters, setShowFilters] = useState(false);
-  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
@@ -222,16 +218,17 @@ export default function ProductsPage() {
         isActive: filterStatus === "" ? undefined : filterStatus === "true",
       };
       if (search.trim()) params.search = search.trim();
-      if (filterType) params.type = filterType as any;
+      if (filterType) params.type = filterType as ProductType;
       if (filterCategory) params.category = filterCategory;
 
       const res = await getProducts(params);
       if (res.success) {
         setRows((res.data as Product[]).map(toRow));
-        setTotalRecords(res.pagination?.total ?? (res.data as any[]).length);
+        setTotalRecords(res.pagination?.total ?? (res.data as unknown[]).length);
       }
-    } catch (e: any) {
-      showToast(e?.response?.data?.message ?? "Failed to fetch products", "error");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      showToast(err?.response?.data?.message ?? "Failed to fetch products", "error");
     } finally {
       setLoading(false);
     }
@@ -239,17 +236,25 @@ export default function ProductsPage() {
 
   const fetchMetaData = useCallback(async () => {
     try {
-      const [catRes] = await Promise.all([getCategories({ limit: 100 })]);
+      const catRes = await getCategories({ limit: 100 });
       setCategories(
-        catRes.data.results.map((c: any) => ({ _id: c._id, name: c.name }))
+        catRes.data.results.map((c: { id: string; name: string }) => ({
+          id: c.id,
+          name: c.name,
+        }))
       );
-    } catch (err) {
+    } catch {
       console.error("Failed to fetch categories");
     }
   }, []);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
-  useEffect(() => { fetchMetaData(); }, [fetchMetaData]);
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    fetchMetaData();
+  }, [fetchMetaData]);
 
   /* ── Toast ── */
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -257,10 +262,15 @@ export default function ProductsPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  /* ── CRUD handlers ── */
+  /* ── CRUD handlers ──
+     ProductFormModal now passes 4 args:
+     (payload, imageFiles, variantIds, removeVariantImages)
+  ── */
   const handleCreate = async (
     payload: CreateProductPayload | UpdateProductPayload,
-    imageFiles: File[][]
+    imageFiles: File[][],
+    _variantIds: (string | undefined)[],
+    _removeVariantImages: Record<string, string[]>
   ) => {
     setActionLoading(true);
     try {
@@ -269,8 +279,9 @@ export default function ProductsPage() {
       setCreateOpen(false);
       setPage(1);
       fetchProducts();
-    } catch (e: any) {
-      showToast(e?.response?.data?.message ?? "Failed to create product", "error");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      showToast(err?.response?.data?.message ?? "Failed to create product", "error");
     } finally {
       setActionLoading(false);
     }
@@ -278,17 +289,25 @@ export default function ProductsPage() {
 
   const handleEdit = async (
     payload: CreateProductPayload | UpdateProductPayload,
-    imageFiles: File[][]
+    imageFiles: File[][],
+    variantIds: (string | undefined)[],
+    removeVariantImages: Record<string, string[]>
   ) => {
     if (!editProduct) return;
     setActionLoading(true);
     try {
-      await updateProduct(editProduct._id, payload as UpdateProductPayload, imageFiles);
+      await updateProduct(
+        editProduct._id,
+        { ...(payload as UpdateProductPayload), removeVariantImages },
+        imageFiles,
+        variantIds
+      );
       showToast("Product updated successfully!");
       setEditProduct(null);
       fetchProducts();
-    } catch (e: any) {
-      showToast(e?.response?.data?.message ?? "Failed to update product", "error");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      showToast(err?.response?.data?.message ?? "Failed to update product", "error");
     } finally {
       setActionLoading(false);
     }
@@ -302,8 +321,9 @@ export default function ProductsPage() {
       showToast("Product deleted successfully!");
       setDeleteTarget(null);
       fetchProducts();
-    } catch (e: any) {
-      showToast(e?.response?.data?.message ?? "Failed to delete product", "error");
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { message?: string } } };
+      showToast(err?.response?.data?.message ?? "Failed to delete product", "error");
     } finally {
       setActionLoading(false);
     }
@@ -344,8 +364,8 @@ export default function ProductsPage() {
       <button
         onClick={() => setShowFilters((p) => !p)}
         className={`flex items-center gap-1.5 px-3.5 py-2 border-[1.5px] rounded-xl cursor-pointer text-sm font-bold transition-colors ${showFilters
-            ? "border-teal-500 bg-teal-50 text-teal-700"
-            : "border-teal-100 bg-white text-teal-400 hover:bg-teal-50"
+          ? "border-teal-500 bg-teal-50 text-teal-700"
+          : "border-teal-100 bg-white text-teal-400 hover:bg-teal-50"
           }`}
       >
         <FilterIcon />
@@ -381,8 +401,8 @@ export default function ProductsPage() {
       {toast && (
         <div
           className={`fixed top-5 right-5 z-[9999] px-5 py-3 rounded-xl text-sm font-bold shadow-[0_4px_24px_rgba(0,0,0,0.1)] flex items-center gap-2 max-w-[340px] border-[1.5px] ${toast.type === "success"
-              ? "bg-teal-50 border-teal-100 text-teal-700"
-              : "bg-red-50 border-red-200 text-red-600"
+            ? "bg-teal-50 border-teal-100 text-teal-700"
+            : "bg-red-50 border-red-200 text-red-600"
             }`}
         >
           <span>{toast.type === "success" ? "✓" : "✕"}</span>
@@ -438,7 +458,7 @@ export default function ProductsPage() {
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
-                <option key={c._id} value={c._id}>
+                <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}

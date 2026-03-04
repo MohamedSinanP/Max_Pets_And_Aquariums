@@ -1,24 +1,83 @@
-import { Schema, model } from "mongoose";
-import {
-  IAttribute,
-  IPrice,
-  IProduct,
-  IQuantity,
-  IVariant,
-  IVariantOption,
-} from "../types/types";
+import { Schema, model, Types, Document } from "mongoose";
+
+/* ─────────────────────────────
+   TYPES
+───────────────────────────── */
+
+export type SellMode = "packaged" | "loose";
+
+export type BaseUnit = "mg" | "ml" | "pcs";
+export type PriceUnit = "kg" | "liter" | "pcs";     // how price is defined
+
+export type ProductType =
+  | "animal"
+  | "food"
+  | "accessory"
+  | "medicine"
+  | "other";
+
+/* ─────────────────────────────
+   Interfaces
+───────────────────────────── */
+
+export interface IImage {
+  url: string;
+  public_id: string;
+}
+
+export interface IPrice {
+  buying: number;   // per priceUnit
+  selling: number;  // per priceUnit
+}
+
+export interface IQuantity {
+  inStock: number;      // stored in baseUnit (g/ml/pcs)
+  baseUnit: BaseUnit;
+}
+
+export interface IVariantOption {
+  name: string;
+  values: string[];
+}
+
+export interface IVariant {
+  _id?: Types.ObjectId;
+
+  sku: string;
+  sellMode: SellMode;
+
+  attributes: Map<string, string>;
+
+  price: IPrice;              // always required
+  priceUnit: PriceUnit;       // defines how price is interpreted
+
+  quantity: IQuantity;
+
+  images: IImage[];
+  isActive: boolean;
+}
+
+export interface IProduct extends Document {
+  name: string;
+  category: Types.ObjectId;
+  type: ProductType;
+
+  description?: string;
+
+  specifications: Map<string, string>;
+
+  variantOptions: IVariantOption[];
+  variants: IVariant[];
+
+  isActive: boolean;
+
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 /* ─────────────────────────────
    Sub-Schemas
 ───────────────────────────── */
-
-const AttributeSchema = new Schema<IAttribute>(
-  {
-    key: { type: String, required: true, trim: true },
-    value: { type: String, required: true, trim: true },
-  },
-  { _id: false }
-);
 
 const VariantOptionSchema = new Schema<IVariantOption>(
   {
@@ -28,7 +87,7 @@ const VariantOptionSchema = new Schema<IVariantOption>(
   { _id: false }
 );
 
-const ImageSchema = new Schema(
+const ImageSchema = new Schema<IImage>(
   {
     url: { type: String, required: true },
     public_id: { type: String, required: true },
@@ -50,13 +109,13 @@ const QuantitySchema = new Schema<IQuantity>(
 
     baseUnit: {
       type: String,
-      enum: ["g", "ml", "pcs"],
-      default: "pcs",
+      enum: ["mg", "ml", "pcs"],
       required: true,
     },
   },
   { _id: false }
 );
+
 /* ─────────────────────────────
    Variant Schema
 ───────────────────────────── */
@@ -70,34 +129,34 @@ const VariantSchema = new Schema<IVariant>(
       trim: true,
       unique: true,
     },
+
     sellMode: {
       type: String,
       enum: ["packaged", "loose"],
-      default: "packaged",
       required: true,
     },
+
     attributes: {
-      type: [AttributeSchema],
-      default: [],
+      type: Map,
+      of: String,
+      default: {},
     },
 
-    // For packaged products
     price: {
       type: PriceSchema,
-      required: function () {
-        return this.sellMode === "packaged";
-      },
+      required: true,
     },
 
-    // For loose products (stored per base unit: g/ml)
-    pricePerBaseUnit: {
-      type: Number,
-      min: 0,
-      required: function (this: IVariant) {
-        return this.sellMode === "loose";
-      },
+    priceUnit: {
+      type: String,
+      enum: ["kg", "liter", "pcs"],
+      required: true,
     },
-    quantity: { type: QuantitySchema, required: true },
+
+    quantity: {
+      type: QuantitySchema,
+      required: true,
+    },
 
     images: {
       type: [ImageSchema],
@@ -106,7 +165,7 @@ const VariantSchema = new Schema<IVariant>(
 
     isActive: { type: Boolean, default: true },
   },
-  { _id: true } // 🔥 Allow _id for variant-level updates
+  { _id: true }
 );
 
 /* ─────────────────────────────
@@ -131,15 +190,10 @@ const ProductSchema = new Schema<IProduct>(
 
     description: { type: String, default: null, trim: true },
 
-    supplier: {
-      type: Schema.Types.ObjectId,
-      ref: "Supplier",
-      default: null,
-    },
-
-    attributes: {
-      type: [AttributeSchema],
-      default: [],
+    specifications: {
+      type: Map,
+      of: String,
+      default: {},
     },
 
     variantOptions: {
@@ -149,7 +203,6 @@ const ProductSchema = new Schema<IProduct>(
 
     variants: {
       type: [VariantSchema],
-      default: [],
       required: true,
       validate: {
         validator: function (value: IVariant[]) {
@@ -171,7 +224,6 @@ const ProductSchema = new Schema<IProduct>(
 ───────────────────────────── */
 
 ProductSchema.index({ category: 1 });
-ProductSchema.index({ supplier: 1 });
 ProductSchema.index({ type: 1 });
 ProductSchema.index({ isActive: 1 });
 ProductSchema.index({ "variants.sku": 1 });

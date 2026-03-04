@@ -97,8 +97,7 @@ export interface IProduct extends Document {
   description?: string;
   supplier?: Types.ObjectId;
 
-  attributes: IAttribute[];        // common attributes
-  variantOptions: IVariantOption[]; // allowed structure
+  variantOptions: IVariantOption[];
   variants: IVariant[];
 
   isActive: boolean;
@@ -119,7 +118,7 @@ export type PaymentMethod = "cash" | "card" | "online" | "other";
 
 export interface IOrderItem {
   product: Types.ObjectId;
-  variant: Types.ObjectId;     // 🔥 REQUIRED NOW
+  variant: Types.ObjectId;
 
   quantity: number;            // in base unit
   unit: "pcs" | "g" | "ml";    // freeze unit at purchase time

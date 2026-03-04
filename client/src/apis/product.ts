@@ -1,21 +1,17 @@
 import api from "./api";
 
 /* =========================
-   Types
+   Types (aligned to backend model)
 ========================= */
 
 export type ProductType = "animal" | "food" | "accessory" | "medicine" | "other";
 export type SellMode = "packaged" | "loose";
-export type QuantityUnit = "kg" | "L" | "pcs";
+export type BaseUnit = "mg" | "ml" | "pcs";
+export type PriceUnit = "kg" | "liter" | "pcs";
 
 export interface ProductImage {
   url: string;
   public_id: string;
-}
-
-export interface ProductAttribute {
-  key: string;
-  value: string;
 }
 
 export interface ProductPrice {
@@ -25,59 +21,46 @@ export interface ProductPrice {
 
 export interface ProductQuantity {
   inStock: number;
-  unit: QuantityUnit;
+  baseUnit: BaseUnit;
+}
+
+export interface IVariantOption {
+  name: string;
+  values: string[];
 }
 
 export interface ProductVariant {
   _id?: string;
-  sku: string;
+  sku?: string;
   sellMode: SellMode;
-  attributes: ProductAttribute[];
+  /** key-value map e.g. { "Color": "Red", "Size": "M" } */
+  attributes: Record<string, string>;
   price: ProductPrice;
+  priceUnit: PriceUnit;
   quantity: ProductQuantity;
   images: ProductImage[];
   isActive: boolean;
 }
 
-export interface VariantOption {
-  name: string;
-  values: string[];
-}
-
 export interface PopulatedCategory {
-  _id: string;
+  id: string;
   name: string;
-  slug: string;
-  type: string;
-}
-
-export interface PopulatedSupplier {
-  _id: string;
-  name: string;
+  slug?: string;
+  type?: string;
 }
 
 export interface Product {
   _id: string;
-  id: string;
   name: string;
-  category: PopulatedCategory;
+  category: PopulatedCategory | null;
   type: ProductType;
   description?: string | null;
-  supplier?: PopulatedSupplier | null;
-  attributes: ProductAttribute[];
-  variantOptions: VariantOption[];
+  specifications?: Record<string, string>;
+  variantOptions?: IVariantOption[];
   variants: ProductVariant[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface PaginatedResponse<T> {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  data: T[];
 }
 
 export interface ApiSuccess<T> {
@@ -102,22 +85,24 @@ export interface GetProductsParams {
   search?: string;
   category?: string;
   type?: ProductType;
-  supplier?: string;
   isActive?: boolean;
 }
 
 /* =========================
-   Payloads
+   Payloads (aligned to backend ParsedVariant)
 ========================= */
 
 export interface VariantPayload {
   _id?: string;
+  /** SKU is backend-generated; ignored by backend if sent */
+  sku?: string;
   sellMode: SellMode;
-  attributes?: ProductAttribute[];
+  attributes: Record<string, string>;
   price: ProductPrice;
+  priceUnit: PriceUnit;
   quantity: ProductQuantity;
   images?: ProductImage[];
-  isActive?: boolean;
+  isActive: boolean;
 }
 
 export interface CreateProductPayload {
@@ -125,66 +110,118 @@ export interface CreateProductPayload {
   category: string;
   type: ProductType;
   description?: string | null;
-  supplier?: string | null;
-  attributes?: ProductAttribute[];
-  variantOptions?: VariantOption[];
+  specifications?: Record<string, string>;
+  variantOptions?: IVariantOption[];
   variants: VariantPayload[];
-  // images handled via FormData (multipart)
 }
 
-export interface UpdateProductPayload extends Partial<CreateProductPayload> { }
+export type UpdateProductPayload = Partial<CreateProductPayload> & {
+  /** Map of variantId → array of public_ids to delete */
+  removeVariantImages?: Record<string, string[]>;
+};
 
 /* =========================
    Helpers
 ========================= */
 
-const toQueryParams = (params?: GetProductsParams) => {
+const toQueryParams = (params?: GetProductsParams): Record<string, string> | undefined => {
   if (!params) return undefined;
-  const q: Record<string, any> = {};
+  const q: Record<string, string> = {};
   if (params.page != null) q.page = String(params.page);
   if (params.limit != null) q.limit = String(params.limit);
   if (params.search) q.search = params.search;
   if (params.category) q.category = params.category;
   if (params.type) q.type = params.type;
-  if (params.supplier) q.supplier = params.supplier;
   if (params.isActive != null) q.isActive = String(params.isActive);
   return q;
 };
 
 /**
- * Build FormData for create/update (handles variant images)
+ * Derive priceUnit from sellMode + baseUnit (matches backend business rules):
+ *   packaged  → priceUnit = "pcs"
+ *   loose mg  → priceUnit = "kg"
+ *   loose ml  → priceUnit = "liter"
  */
-export const buildProductFormData = (
-  payload: CreateProductPayload | UpdateProductPayload,
-  variantImageFiles?: File[][] // array per variant index
+export const derivePriceUnit = (sellMode: SellMode, baseUnit: BaseUnit): PriceUnit => {
+  if (sellMode === "packaged") return "pcs";
+  if (baseUnit === "mg") return "kg";
+  return "liter";
+};
+
+/**
+ * Build FormData for create.
+ * Image field name: variants[${i}][images]
+ */
+export const buildCreateFormData = (
+  payload: CreateProductPayload,
+  variantImageFiles: File[][]
+): FormData => {
+  const form = new FormData();
+
+  form.append("name", payload.name);
+  form.append("category", payload.category);
+  form.append("type", payload.type);
+  if (payload.description != null) form.append("description", payload.description ?? "");
+  if (payload.specifications) form.append("specifications", JSON.stringify(payload.specifications));
+  if (payload.variantOptions) form.append("variantOptions", JSON.stringify(payload.variantOptions));
+
+  // strip client-side sku before sending
+  const sanitized = payload.variants.map(({ sku: _sku, ...rest }) => rest);
+  form.append("variants", JSON.stringify(sanitized));
+
+  // attach images per variant index
+  variantImageFiles.forEach((files, i) => {
+    files.forEach((file) => {
+      form.append(`variants[${i}][images]`, file);
+    });
+  });
+
+  return form;
+};
+
+/**
+ * Build FormData for update.
+ * New images for existing variants: variantImages[${variantId}]
+ * New images for new variants: variants[${i}][images]  (index in the variants array)
+ * removeVariantImages: JSON stringified map
+ */
+export const buildUpdateFormData = (
+  payload: UpdateProductPayload,
+  variantImageFiles: File[][],
+  /** pass the variant IDs in same order as payload.variants */
+  variantIds: (string | undefined)[]
 ): FormData => {
   const form = new FormData();
 
   if (payload.name) form.append("name", payload.name);
   if (payload.category) form.append("category", payload.category);
   if (payload.type) form.append("type", payload.type);
-  if (payload.description !== undefined)
-    form.append("description", payload.description ?? "");
-  if (payload.supplier !== undefined)
-    form.append("supplier", payload.supplier ?? "");
+  if (payload.description !== undefined) form.append("description", payload.description ?? "");
+  if (payload.specifications) form.append("specifications", JSON.stringify(payload.specifications));
+  if (payload.variantOptions) form.append("variantOptions", JSON.stringify(payload.variantOptions));
 
-  if (payload.attributes)
-    form.append("attributes", JSON.stringify(payload.attributes));
-
-  if (payload.variantOptions)
-    form.append("variantOptions", JSON.stringify(payload.variantOptions));
-
-  if (payload.variants)
-    form.append("variants", JSON.stringify(payload.variants));
-
-  // Attach images per variant
-  if (variantImageFiles) {
-    variantImageFiles.forEach((files, i) => {
-      files.forEach((file) => {
-        form.append(`variants[${i}][images]`, file);
-      });
-    });
+  if (payload.removeVariantImages && Object.keys(payload.removeVariantImages).length) {
+    form.append("removeVariantImages", JSON.stringify(payload.removeVariantImages));
   }
+
+  if (payload.variants) {
+    const sanitized = payload.variants.map(({ sku: _sku, ...rest }) => rest);
+    form.append("variants", JSON.stringify(sanitized));
+  }
+
+  // attach images
+  variantImageFiles.forEach((files, i) => {
+    const variantId = variantIds[i];
+    files.forEach((file) => {
+      if (variantId) {
+        // existing variant — backend uses variantImages[<id>]
+        form.append(`variantImages[${variantId}]`, file);
+      } else {
+        // new variant in update — backend uses variants[${i}][images]
+        form.append(`variants[${i}][images]`, file);
+      }
+    });
+  });
 
   return form;
 };
@@ -193,7 +230,6 @@ export const buildProductFormData = (
    API Functions
 ========================= */
 
-// GET /api/products
 export const getProducts = async (params?: GetProductsParams) => {
   const res = await api.get<ApiSuccess<Product[]>>("/products", {
     params: toQueryParams(params),
@@ -201,38 +237,35 @@ export const getProducts = async (params?: GetProductsParams) => {
   return res.data;
 };
 
-// GET /api/products/:id
 export const getProductById = async (id: string) => {
   const res = await api.get<ApiSuccess<Product>>(`/products/${id}`);
   return res.data;
 };
 
-// POST /api/products (multipart/form-data)
 export const createProduct = async (
   payload: CreateProductPayload,
-  variantImageFiles?: File[][]
+  variantImageFiles: File[][]
 ) => {
-  const form = buildProductFormData(payload, variantImageFiles);
+  const form = buildCreateFormData(payload, variantImageFiles);
   const res = await api.post<ApiSuccess<Product>>("/products", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data;
 };
 
-// PUT /api/products/:id (multipart/form-data)
 export const updateProduct = async (
   id: string,
   payload: UpdateProductPayload,
-  variantImageFiles?: File[][]
+  variantImageFiles: File[][],
+  variantIds: (string | undefined)[]
 ) => {
-  const form = buildProductFormData(payload, variantImageFiles);
+  const form = buildUpdateFormData(payload, variantImageFiles, variantIds);
   const res = await api.put<ApiSuccess<Product>>(`/products/${id}`, form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data;
 };
 
-// DELETE /api/products/:id (soft delete)
 export const deleteProduct = async (id: string) => {
   const res = await api.delete<ApiSuccess<null>>(`/products/${id}`);
   return res.data;
