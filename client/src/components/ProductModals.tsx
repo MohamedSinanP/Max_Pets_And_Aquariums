@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import {
+  derivePriceUnit,
+} from "../apis/product";
+import {
   type Product,
   type VariantPayload,
   type IVariantOption,
@@ -9,8 +12,7 @@ import {
   type BaseUnit,
   type PriceUnit,
   type ProductType,
-  derivePriceUnit,
-} from "../apis/product";
+} from "../types/product"
 
 /* ════════════════════════════════════════════════════════════
    HELPERS

@@ -396,52 +396,6 @@ export default function DataTable<T extends { id: string }>({
                         ID: {row.id}
                       </div>
                     </div>
-
-                    {/* Actions (show ALL buttons in card view) */}
-                    {actions && actions.length > 0 && (
-                      <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {actions.map((action, ai) => {
-                          const key = `${row.id}-card-${ai}`;
-                          const isActHovered = hoveredAction === key;
-
-                          // ✅ Special case: if action label is Toggle/Deactivate/etc, show Activate/Deactivate based on row.isActive
-                          const actionLabel =
-                            String(action.label).toLowerCase() === "toggle"
-                              ? ((row as any).isActive ? "Deactivate" : "Activate")
-                              : String(action.label).toLowerCase() === "deactivate" || String(action.label).toLowerCase() === "activate"
-                                ? ((row as any).isActive ? "Deactivate" : "Activate")
-                                : action.label;
-
-                          return (
-                            <button
-                              key={ai}
-                              onClick={() => action.onClick(row)}
-                              onMouseEnter={() => setHoveredAction(key)}
-                              onMouseLeave={() => setHoveredAction(null)}
-                              style={{
-                                background: isActHovered ? (action.hoverBg ?? "#f0fdfa") : "#fff",
-                                border: `1.5px solid ${isActHovered ? (action.hoverColor ?? "#0d9488") : "#e2f5f3"
-                                  }`,
-                                color: isActHovered ? (action.hoverColor ?? "#0d9488") : (action.color ?? "#5eaaa0"),
-                                padding: "8px 10px",
-                                borderRadius: 12,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                fontSize: 12,
-                                fontFamily: "'DM Sans', sans-serif",
-                                fontWeight: 800,
-                                transition: "all 0.2s",
-                              }}
-                            >
-                              {action.icon}
-                              <span>{actionLabel}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
                   </div>
 
                   {/* Details */}

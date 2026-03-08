@@ -1,8 +1,14 @@
+import type { AuthUser } from "../types/user";
 import api from "./api";
 
 /* =========================
    Types
 ========================= */
+
+export interface UserAvatar {
+  url: string;
+  public_id: string;
+}
 
 export interface User {
   _id: string;
@@ -10,7 +16,7 @@ export interface User {
   email: string;
   role: string;
   phone?: string;
-  avatar?: string;
+  avatar?: UserAvatar | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,9 +52,14 @@ export interface UpdateProfilePayload {
   userId: string;
   name?: string;
   phone?: string;
-  avatar?: string;
+  avatarFile?: File | null;
 }
 
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data: AuthUser;
+}
 /* =========================
    API Functions
 ========================= */
@@ -67,7 +78,7 @@ export const register = async (payload: RegisterPayload) => {
  * Logs in a user. Sets httpOnly cookies on success.
  */
 export const login = async (payload: LoginPayload) => {
-  const res = await api.post<ApiSuccess>("/auth/login", payload);
+  const res = await api.post<AuthResponse>("/auth/login", payload);
   return res.data;
 };
 
@@ -95,7 +106,32 @@ export const updatePassword = async (payload: UpdatePasswordPayload) => {
  * Updates the profile (name, phone, avatar) for the authenticated user.
  */
 export const updateProfile = async (payload: UpdateProfilePayload) => {
-  const res = await api.put<ApiSuccess<User>>("/auth/update-profile", payload);
+  const formData = new FormData();
+
+  formData.append("userId", payload.userId);
+
+  if (payload.name !== undefined) {
+    formData.append("name", payload.name);
+  }
+
+  if (payload.phone !== undefined) {
+    formData.append("phone", payload.phone);
+  }
+
+  if (payload.avatarFile) {
+    formData.append("avatar", payload.avatarFile);
+  }
+
+  const res = await api.put<ApiSuccess<User>>(
+    "/auth/update-profile",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
   return res.data;
 };
 
@@ -106,4 +142,9 @@ export const updateProfile = async (payload: UpdateProfilePayload) => {
 export const logout = async () => {
   const res = await api.post<ApiSuccess>("/auth/logout");
   return res.data;
+};
+
+export const getMe = async (): Promise<AuthUser> => {
+  const res = await api.get<AuthResponse>("/auth/me");
+  return res.data.data;
 };

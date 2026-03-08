@@ -1,121 +1,21 @@
-import api from "./api";
+// ─────────────────────────────────────────────
+//  orders.api.ts
+//  Real API calls for Order Management
+// ─────────────────────────────────────────────
 
-/* =========================
-   Types
-========================= */
+import api from "./api"; // your axios instance
+import type {
+  ApiSuccess,
+  CreateOrderPayload,
+  GetOrdersParams,
+  Order,
+  PaginatedOrderResponse,
+  UpdateOrderStatusPayload,
+} from "../types/order";
 
-export type OrderStatus = "pending" | "confirmed" | "ready" | "delivered" | "cancelled";
-export type PaymentStatus = "pending" | "paid" | "partial" | "refunded";
-export type PaymentMethod = "cash" | "card" | "online" | "other";
-export type SellMode = "packaged" | "loose";
-export type BaseUnit = "mg" | "ml" | "pcs";
-export type PriceUnit = "kg" | "liter" | "pcs";
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-export interface OrderCustomer {
-  name: string;
-  phone: string;
-  email?: string | null;
-}
-
-export interface OrderItem {
-  _id?: string;
-  product: string | { _id: string; name: string; image?: string; category?: { name: string } | null };
-  variant: string | {
-    _id: string;
-    sku?: string;
-    sellMode: SellMode;
-    attributes: Record<string, string>;
-    price: { buying: number; selling: number };
-    priceUnit: PriceUnit;
-    quantity: { inStock: number; baseUnit: BaseUnit };
-    isActive: boolean;
-  };
-  quantity: number;
-  unit: BaseUnit;
-  sellMode: SellMode;
-  priceUnit: PriceUnit;
-  unitPrice: number;
-  subtotal: number;
-}
-
-export interface Order {
-  _id: string;
-  id: string;
-  orderNumber: string;
-  customer: OrderCustomer | null;
-  items: OrderItem[];
-  totalAmount: number;
-  discount: number;
-  finalAmount: number;
-  paymentStatus: PaymentStatus;
-  paymentMethod: PaymentMethod;
-  orderStatus: OrderStatus;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ApiSuccess<T = null> {
-  success: boolean;
-  message: string;
-  data?: T;
-}
-
-export interface PaginatedOrderResponse {
-  orders: Order[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-/* =========================
-   Query Params
-========================= */
-
-export interface GetOrdersParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  orderStatus?: OrderStatus | "";
-  paymentStatus?: PaymentStatus | "";
-  from?: string;
-  to?: string;
-  phone?: string;
-}
-
-/* =========================
-   Payloads
-========================= */
-
-export interface CreateOrderItemPayload {
-  product: string;
-  variant: string;
-  quantity: number;
-  // optional — backend derives from variant, but send for validation
-  unit?: BaseUnit;
-  sellMode?: SellMode;
-  priceUnit?: PriceUnit;
-}
-
-export interface CreateOrderPayload {
-  customer?: OrderCustomer | null;
-  items: CreateOrderItemPayload[];
-  discount?: number;
-  paymentMethod: PaymentMethod;
-}
-
-export interface UpdateOrderStatusPayload {
-  orderStatus?: OrderStatus;
-  paymentStatus?: PaymentStatus;
-}
-
-/* =========================
-   Helpers
-========================= */
-
-const toQueryParams = (params?: GetOrdersParams) => {
+const toQueryParams = (params?: GetOrdersParams): Record<string, string> | undefined => {
   if (!params) return undefined;
   const q: Record<string, string> = {};
   if (params.page != null) q.page = String(params.page);
@@ -129,62 +29,15 @@ const toQueryParams = (params?: GetOrdersParams) => {
   return q;
 };
 
-/** Format display unit label based on sellMode + units */
-export const formatQuantityDisplay = (
-  qty: number,
-  unit: BaseUnit,
-  sellMode: SellMode,
-  priceUnit: PriceUnit
-): string => {
-  if (sellMode === "packaged" || unit === "pcs") return `${qty} pcs`;
-  if (unit === "mg") {
-    if (qty >= 1_000_000) return `${(qty / 1_000_000).toFixed(2)} kg`;
-    if (qty >= 1000) return `${(qty / 1000).toFixed(0)} g`;
-    return `${qty} mg`;
-  }
-  if (unit === "ml") {
-    if (qty >= 1000) return `${(qty / 1000).toFixed(2)} L`;
-    return `${qty} ml`;
-  }
-  return `${qty} ${unit}`;
-};
-
-/** Format unit price label */
-export const formatUnitPriceDisplay = (unitPrice: number, priceUnit: PriceUnit): string => {
-  return `₹${unitPrice.toFixed(2)} / ${priceUnit}`;
-};
-
-/* =========================
-   API Functions
-========================= */
-
-/**
- * POST /api/orders
- * Creates a new order. Validates stock, deducts inventory.
- */
-export const createOrder = async (payload: CreateOrderPayload) => {
-  const res = await api.post<ApiSuccess<Order>>("/orders", payload);
-  return res.data;
-};
-
-/**
- * PATCH /api/orders/:id/status
- * Updates orderStatus and/or paymentStatus.
- * Restores stock if order is cancelled or payment refunded.
- */
-export const updateOrderStatus = async (
-  id: string,
-  payload: UpdateOrderStatusPayload
-) => {
-  const res = await api.patch<ApiSuccess<Order>>(`/orders/${id}/status`, payload);
-  return res.data;
-};
+// ── API Functions ──────────────────────────────────────────────────────────
 
 /**
  * GET /api/orders
- * Fetches paginated orders with optional filters.
+ * Paginated order list with optional filters.
  */
-export const getOrders = async (params?: GetOrdersParams) => {
+export const getOrders = async (
+  params?: GetOrdersParams
+): Promise<ApiSuccess<PaginatedOrderResponse>> => {
   const res = await api.get<ApiSuccess<PaginatedOrderResponse>>("/orders", {
     params: toQueryParams(params),
   });
@@ -193,9 +46,33 @@ export const getOrders = async (params?: GetOrdersParams) => {
 
 /**
  * GET /api/orders/:id
- * Fetches a single order with populated product details.
+ * Single order with populated product + category.
  */
-export const getOrderById = async (id: string) => {
+export const getOrderById = async (id: string): Promise<ApiSuccess<Order>> => {
   const res = await api.get<ApiSuccess<Order>>(`/orders/${id}`);
+  return res.data;
+};
+
+/**
+ * POST /api/orders
+ * Creates a new order. Validates stock, deducts inventory, returns order.
+ */
+export const createOrder = async (
+  payload: CreateOrderPayload
+): Promise<ApiSuccess<Order>> => {
+  const res = await api.post<ApiSuccess<Order>>("/orders", payload);
+  return res.data;
+};
+
+/**
+ * PATCH /api/orders/:id/status
+ * Updates orderStatus and/or paymentStatus.
+ * Automatically restores stock when order is cancelled or payment refunded.
+ */
+export const updateOrderStatus = async (
+  id: string,
+  payload: UpdateOrderStatusPayload
+): Promise<ApiSuccess<Order>> => {
+  const res = await api.patch<ApiSuccess<Order>>(`/orders/${id}/status`, payload);
   return res.data;
 };

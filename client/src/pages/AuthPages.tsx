@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, register } from "../apis/auth";
 import type { LoginPayload, RegisterPayload } from "../apis/auth";
+import { useAppDispatch } from "../store/hooks";
+import { setUser } from "../store/authSlice";
 
 /* ─────────────────────────────────────
    Constants & helpers
@@ -223,40 +225,6 @@ function Panel({ mode }: { mode: "login" | "register" }) {
           : "Create your account and start managing your store."}
       </p>
 
-      {/* Feature pills */}
-      {["Product Management", "Order Tracking", "Analytics"].map((f) => (
-        <div
-          key={f}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 12,
-            width: "100%",
-            maxWidth: 240,
-          }}
-        >
-          <div
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 8,
-              background: "rgba(255,255,255,0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-              <path d="M2 6l3 3 5-5" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
-            {f}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -273,6 +241,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -297,8 +266,15 @@ export function LoginPage() {
 
     setLoading(true);
     setApiError("");
+
     try {
-      await login({ email: email.trim(), password } as LoginPayload);
+      const res = await login({ email: email.trim(), password } as LoginPayload);
+
+      if (!res.data) {
+        throw new Error("User data not found in login response");
+      }
+      dispatch(setUser(res.data));
+
       navigate("/dashboard");
     } catch (err: any) {
       setApiError(err?.response?.data?.message ?? "Login failed. Please try again.");
@@ -393,7 +369,7 @@ export function LoginPage() {
           >
             Sign in
           </h2>
-          <p style={{ margin: "0 0 36px", color: "#5eaaa0", fontSize: 14 }}>
+          {/* <p style={{ margin: "0 0 36px", color: "#5eaaa0", fontSize: 14 }}>
             Don't have an account?{" "}
             <span
               onClick={() => navigate("/register")}
@@ -401,7 +377,7 @@ export function LoginPage() {
             >
               Register
             </span>
-          </p>
+          </p> */}
 
           {/* API Error */}
           {apiError && (
@@ -474,322 +450,295 @@ export function LoginPage() {
           >
             {loading ? "Signing in…" : "Sign In →"}
           </button>
-
-          {/* Divider */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              margin: "28px 0",
-              color: "#9ed8d4",
-              fontSize: 12,
-            }}
-          >
-            <div style={{ flex: 1, height: 1, background: TEAL_LIGHT }} />
-            Secure login
-            <div style={{ flex: 1, height: 1, background: TEAL_LIGHT }} />
-          </div>
-
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              color: "#9ed8d4",
-              margin: 0,
-            }}
-          >
-            Protected by JWT authentication & secure cookies
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────
-   REGISTER PAGE
-───────────────────────────────────── */
-export function RegisterPage() {
-  const navigate = useNavigate();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
-  const [apiError, setApiError] = useState("");
-  const [isMobile, setIsMobile] = useState(false);
+// /* ─────────────────────────────────────
+//    REGISTER PAGE
+// ───────────────────────────────────── */
+// export function RegisterPage() {
+//   const navigate = useNavigate();
+//   const [name, setName] = useState("");
+//   const [email, setEmail] = useState("");
+//   const [password, setPassword] = useState("");
+//   const [confirmPassword, setConfirmPassword] = useState("");
+//   const [showPass, setShowPass] = useState(false);
+//   const [showConfirm, setShowConfirm] = useState(false);
+//   const [errors, setErrors] = useState<Record<string, string>>({});
+//   const [loading, setLoading] = useState(false);
+//   const [apiError, setApiError] = useState("");
+//   const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
+//   useEffect(() => {
+//     const check = () => setIsMobile(window.innerWidth < 768);
+//     check();
+//     window.addEventListener("resize", check);
+//     return () => window.removeEventListener("resize", check);
+//   }, []);
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters";
-    if (!email.trim()) e.email = "Email is required";
-    else if (!/^[^@]+@gmail\.com$/.test(email)) e.email = "Must be a valid Gmail address";
-    if (!password) e.password = "Password is required";
-    else if (password.length < 6) e.password = "At least 6 characters";
-    if (confirmPassword !== password) e.confirmPassword = "Passwords do not match";
-    return e;
-  };
+//   const validate = () => {
+//     const e: Record<string, string> = {};
+//     if (!name.trim() || name.trim().length < 2) e.name = "Name must be at least 2 characters";
+//     if (!email.trim()) e.email = "Email is required";
+//     else if (!/^[^@]+@gmail\.com$/.test(email)) e.email = "Must be a valid Gmail address";
+//     if (!password) e.password = "Password is required";
+//     else if (password.length < 6) e.password = "At least 6 characters";
+//     if (confirmPassword !== password) e.confirmPassword = "Passwords do not match";
+//     return e;
+//   };
 
-  const handleSubmit = async () => {
-    const errs = validate();
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
+//   const handleSubmit = async () => {
+//     const errs = validate();
+//     setErrors(errs);
+//     if (Object.keys(errs).length) return;
 
-    setLoading(true);
-    setApiError("");
-    try {
-      await register({ name: name.trim(), email: email.trim(), password } as RegisterPayload);
-      navigate("/dashboard");
-    } catch (err: any) {
-      setApiError(err?.response?.data?.message ?? "Registration failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+//     setLoading(true);
+//     setApiError("");
+//     try {
+//       await register({ name: name.trim(), email: email.trim(), password } as RegisterPayload);
+//       navigate("/dashboard");
+//     } catch (err: any) {
+//       setApiError(err?.response?.data?.message ?? "Registration failed. Please try again.");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSubmit();
-  };
+//   const handleKeyDown = (e: React.KeyboardEvent) => {
+//     if (e.key === "Enter") handleSubmit();
+//   };
 
-  /* Password strength */
-  const strength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
-  const strengthLabel = ["", "Weak", "Good", "Strong"][strength];
-  const strengthColor = ["", "#ef4444", "#f59e0b", "#16a34a"][strength];
+//   /* Password strength */
+//   const strength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3;
+//   const strengthLabel = ["", "Weak", "Good", "Strong"][strength];
+//   const strengthColor = ["", "#ef4444", "#f59e0b", "#16a34a"][strength];
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        fontFamily: "'DM Sans', sans-serif",
-        overflow: "hidden",
-      }}
-    >
-      {/* Left panel */}
-      {isMobile ? (
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${TEAL_DARKER}, ${TEAL_MID})`,
-            padding: "32px 24px",
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.12)",
-              border: "1.5px solid rgba(255,255,255,0.2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
-              <ellipse cx="32" cy="42" rx="14" ry="11" fill="rgba(255,255,255,0.3)" />
-              <ellipse cx="15" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
-              <ellipse cx="49" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
-              <ellipse cx="22" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
-              <ellipse cx="42" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
-            </svg>
-          </div>
-          <div>
-            <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, letterSpacing: "-0.3px" }}>
-              Max Pets Admin
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
-              Create your account
-            </div>
-          </div>
-        </div>
-      ) : (
-        <Panel mode="register" />
-      )}
+//   return (
+//     <div
+//       style={{
+//         minHeight: "100vh",
+//         display: "flex",
+//         flexDirection: isMobile ? "column" : "row",
+//         fontFamily: "'DM Sans', sans-serif",
+//         overflow: "hidden",
+//       }}
+//     >
+//       {/* Left panel */}
+//       {isMobile ? (
+//         <div
+//           style={{
+//             background: `linear-gradient(135deg, ${TEAL_DARKER}, ${TEAL_MID})`,
+//             padding: "32px 24px",
+//             display: "flex",
+//             alignItems: "center",
+//             gap: 16,
+//           }}
+//         >
+//           <div
+//             style={{
+//               width: 48,
+//               height: 48,
+//               borderRadius: 14,
+//               background: "rgba(255,255,255,0.12)",
+//               border: "1.5px solid rgba(255,255,255,0.2)",
+//               display: "flex",
+//               alignItems: "center",
+//               justifyContent: "center",
+//               flexShrink: 0,
+//             }}
+//           >
+//             <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+//               <ellipse cx="32" cy="42" rx="14" ry="11" fill="rgba(255,255,255,0.3)" />
+//               <ellipse cx="15" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
+//               <ellipse cx="49" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
+//               <ellipse cx="22" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
+//               <ellipse cx="42" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
+//             </svg>
+//           </div>
+//           <div>
+//             <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, letterSpacing: "-0.3px" }}>
+//               Max Pets Admin
+//             </div>
+//             <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+//               Create your account
+//             </div>
+//           </div>
+//         </div>
+//       ) : (
+//         <Panel mode="register" />
+//       )}
 
-      {/* Right — Form */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: isMobile ? "32px 24px" : "60px 64px",
-          background: "#fff",
-          overflowY: "auto",
-        }}
-        onKeyDown={handleKeyDown}
-      >
-        <div style={{ width: "100%", maxWidth: 400 }}>
-          <h2
-            style={{
-              margin: "0 0 6px",
-              fontSize: isMobile ? 24 : 28,
-              fontWeight: 900,
-              color: "#0d4f4a",
-              letterSpacing: "-0.5px",
-            }}
-          >
-            Create account
-          </h2>
-          <p style={{ margin: "0 0 36px", color: "#5eaaa0", fontSize: 14 }}>
-            Already have an account?{" "}
-            <span
-              onClick={() => navigate("/login")}
-              style={{ color: TEAL, fontWeight: 700, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
-            >
-              Sign in
-            </span>
-          </p>
+//       {/* Right — Form */}
+//       <div
+//         style={{
+//           flex: 1,
+//           display: "flex",
+//           flexDirection: "column",
+//           justifyContent: "center",
+//           alignItems: "center",
+//           padding: isMobile ? "32px 24px" : "60px 64px",
+//           background: "#fff",
+//           overflowY: "auto",
+//         }}
+//         onKeyDown={handleKeyDown}
+//       >
+//         <div style={{ width: "100%", maxWidth: 400 }}>
+//           <h2
+//             style={{
+//               margin: "0 0 6px",
+//               fontSize: isMobile ? 24 : 28,
+//               fontWeight: 900,
+//               color: "#0d4f4a",
+//               letterSpacing: "-0.5px",
+//             }}
+//           >
+//             Create account
+//           </h2>
+//           <p style={{ margin: "0 0 36px", color: "#5eaaa0", fontSize: 14 }}>
+//             Already have an account?{" "}
+//             <span
+//               onClick={() => navigate("/login")}
+//               style={{ color: TEAL, fontWeight: 700, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
+//             >
+//               Sign in
+//             </span>
+//           </p>
 
-          {apiError && (
-            <div
-              style={{
-                background: "#fef2f2",
-                border: "1.5px solid #fecaca",
-                borderRadius: 12,
-                padding: "12px 16px",
-                color: "#dc2626",
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 20,
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <span style={{ fontSize: 16 }}>⚠</span> {apiError}
-            </div>
-          )}
+//           {apiError && (
+//             <div
+//               style={{
+//                 background: "#fef2f2",
+//                 border: "1.5px solid #fecaca",
+//                 borderRadius: 12,
+//                 padding: "12px 16px",
+//                 color: "#dc2626",
+//                 fontSize: 13,
+//                 fontWeight: 600,
+//                 marginBottom: 20,
+//                 display: "flex",
+//                 alignItems: "center",
+//                 gap: 8,
+//               }}
+//             >
+//               <span style={{ fontSize: 16 }}>⚠</span> {apiError}
+//             </div>
+//           )}
 
-          <Field
-            label="Full Name"
-            value={name}
-            onChange={setName}
-            placeholder="John Doe"
-            autoComplete="name"
-            error={errors.name}
-          />
-          <Field
-            label="Email Address"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            placeholder="you@gmail.com"
-            autoComplete="email"
-            error={errors.email}
-          />
-          <Field
-            label="Password"
-            type={showPass ? "text" : "password"}
-            value={password}
-            onChange={setPassword}
-            placeholder="Min. 6 characters"
-            autoComplete="new-password"
-            error={errors.password}
-            suffix={
-              <span onClick={() => setShowPass((p) => !p)}>
-                {showPass ? <EyeClosed /> : <EyeOpen />}
-              </span>
-            }
-          />
+//           <Field
+//             label="Full Name"
+//             value={name}
+//             onChange={setName}
+//             placeholder="John Doe"
+//             autoComplete="name"
+//             error={errors.name}
+//           />
+//           <Field
+//             label="Email Address"
+//             type="email"
+//             value={email}
+//             onChange={setEmail}
+//             placeholder="you@gmail.com"
+//             autoComplete="email"
+//             error={errors.email}
+//           />
+//           <Field
+//             label="Password"
+//             type={showPass ? "text" : "password"}
+//             value={password}
+//             onChange={setPassword}
+//             placeholder="Min. 6 characters"
+//             autoComplete="new-password"
+//             error={errors.password}
+//             suffix={
+//               <span onClick={() => setShowPass((p) => !p)}>
+//                 {showPass ? <EyeClosed /> : <EyeOpen />}
+//               </span>
+//             }
+//           />
 
-          {/* Password strength bar */}
-          {password.length > 0 && (
-            <div style={{ marginTop: -10, marginBottom: 18 }}>
-              <div
-                style={{
-                  height: 4,
-                  borderRadius: 4,
-                  background: TEAL_LIGHT,
-                  overflow: "hidden",
-                  marginBottom: 4,
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${(strength / 3) * 100}%`,
-                    background: strengthColor,
-                    borderRadius: 4,
-                    transition: "width 0.3s, background 0.3s",
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: strengthColor }}>
-                {strengthLabel}
-              </span>
-            </div>
-          )}
+//           {/* Password strength bar */}
+//           {password.length > 0 && (
+//             <div style={{ marginTop: -10, marginBottom: 18 }}>
+//               <div
+//                 style={{
+//                   height: 4,
+//                   borderRadius: 4,
+//                   background: TEAL_LIGHT,
+//                   overflow: "hidden",
+//                   marginBottom: 4,
+//                 }}
+//               >
+//                 <div
+//                   style={{
+//                     height: "100%",
+//                     width: `${(strength / 3) * 100}%`,
+//                     background: strengthColor,
+//                     borderRadius: 4,
+//                     transition: "width 0.3s, background 0.3s",
+//                   }}
+//                 />
+//               </div>
+//               <span style={{ fontSize: 11, fontWeight: 700, color: strengthColor }}>
+//                 {strengthLabel}
+//               </span>
+//             </div>
+//           )}
 
-          <Field
-            label="Confirm Password"
-            type={showConfirm ? "text" : "password"}
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            placeholder="Re-enter password"
-            autoComplete="new-password"
-            error={errors.confirmPassword}
-            suffix={
-              <span onClick={() => setShowConfirm((p) => !p)}>
-                {showConfirm ? <EyeClosed /> : <EyeOpen />}
-              </span>
-            }
-          />
+//           <Field
+//             label="Confirm Password"
+//             type={showConfirm ? "text" : "password"}
+//             value={confirmPassword}
+//             onChange={setConfirmPassword}
+//             placeholder="Re-enter password"
+//             autoComplete="new-password"
+//             error={errors.confirmPassword}
+//             suffix={
+//               <span onClick={() => setShowConfirm((p) => !p)}>
+//                 {showConfirm ? <EyeClosed /> : <EyeOpen />}
+//               </span>
+//             }
+//           />
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "14px",
-              background: loading
-                ? TEAL_LIGHT
-                : `linear-gradient(135deg, ${TEAL_DARK} 0%, ${TEAL_MID} 100%)`,
-              color: loading ? TEAL_DARK : "#fff",
-              border: "none",
-              borderRadius: 12,
-              fontSize: 15,
-              fontWeight: 800,
-              cursor: loading ? "not-allowed" : "pointer",
-              fontFamily: "'DM Sans', sans-serif",
-              marginTop: 8,
-              transition: "all 0.2s",
-              boxShadow: loading ? "none" : "0 4px 16px rgba(13,148,136,0.3)",
-              letterSpacing: "0.2px",
-            }}
-          >
-            {loading ? "Creating account…" : "Create Account →"}
-          </button>
+//           <button
+//             onClick={handleSubmit}
+//             disabled={loading}
+//             style={{
+//               width: "100%",
+//               padding: "14px",
+//               background: loading
+//                 ? TEAL_LIGHT
+//                 : `linear-gradient(135deg, ${TEAL_DARK} 0%, ${TEAL_MID} 100%)`,
+//               color: loading ? TEAL_DARK : "#fff",
+//               border: "none",
+//               borderRadius: 12,
+//               fontSize: 15,
+//               fontWeight: 800,
+//               cursor: loading ? "not-allowed" : "pointer",
+//               fontFamily: "'DM Sans', sans-serif",
+//               marginTop: 8,
+//               transition: "all 0.2s",
+//               boxShadow: loading ? "none" : "0 4px 16px rgba(13,148,136,0.3)",
+//               letterSpacing: "0.2px",
+//             }}
+//           >
+//             {loading ? "Creating account…" : "Create Account →"}
+//           </button>
 
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: 12,
-              color: "#9ed8d4",
-              margin: "20px 0 0",
-            }}
-          >
-            By registering you agree to our terms of service
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+//           <p
+//             style={{
+//               textAlign: "center",
+//               fontSize: 12,
+//               color: "#9ed8d4",
+//               margin: "20px 0 0",
+//             }}
+//           >
+//             By registering you agree to our terms of service
+//           </p>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }

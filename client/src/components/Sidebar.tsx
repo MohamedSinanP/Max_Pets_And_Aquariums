@@ -1,4 +1,9 @@
 import { useState, useEffect, type JSX } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAppDispatch } from "../store/hooks";
+import { logout as logoutAction } from "../store/authSlice";
+import { logout as logoutApi } from "../apis/auth";
+import logo_1 from "../assets/logo.png";
 
 interface NavItem {
   id: string;
@@ -149,6 +154,9 @@ export default function Sidebar({
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     const check = () => {
@@ -169,6 +177,21 @@ export default function Sidebar({
     .join("")
     .slice(0, 2)
     .toUpperCase();
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
+    try {
+      await logoutApi(); // backend clears cookies
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      dispatch(logoutAction()); // clear redux auth state
+      navigate("/login", { replace: true });
+      setLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -281,9 +304,18 @@ export default function Sidebar({
                 justifyContent: "center",
                 flexShrink: 0,
                 backdropFilter: "blur(8px)",
+                overflow: "hidden",
               }}
             >
-              <PawIcon />
+              <img
+                src={logo_1}
+                alt="Max Pets & Aquarium Logo"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
             </div>
 
             {/* Brand text */}
@@ -538,7 +570,8 @@ export default function Sidebar({
           {/* Logout button */}
           {!collapsed && (
             <button
-              onClick={() => {/* hook up logout */ }}
+              onClick={handleLogout}
+              disabled={loggingOut}
               title="Logout"
               style={{
                 background: "rgba(255,255,255,0.1)",
@@ -550,9 +583,10 @@ export default function Sidebar({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
+                cursor: loggingOut ? "not-allowed" : "pointer",
                 flexShrink: 0,
                 transition: "all 0.18s",
+                opacity: loggingOut ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
                 const b = e.currentTarget as HTMLButtonElement;
