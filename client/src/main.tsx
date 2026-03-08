@@ -7,6 +7,10 @@ import { Provider } from 'react-redux'
 import { persistor, store } from './store/index.ts'
 import { PersistGate } from 'redux-persist/integration/react'
 import AuthBootstrap from './components/auth/AuthBootstrap.tsx'
+import { registerSW } from "virtual:pwa-register";
+import PWAInstallPrompt from './components/PWAInstallPrompt.tsx'
+
+registerSW();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -14,7 +18,10 @@ createRoot(document.getElementById('root')!).render(
       <Provider store={store}>
         <PersistGate loading={null} persistor={persistor}>
           <AuthBootstrap>
-            <App />
+            <>
+              <App />
+              <PWAInstallPrompt />
+            </>
           </AuthBootstrap>
         </PersistGate>
       </Provider>

@@ -4,6 +4,7 @@ import { login, register } from "../apis/auth";
 import type { LoginPayload, RegisterPayload } from "../apis/auth";
 import { useAppDispatch } from "../store/hooks";
 import { setUser } from "../store/authSlice";
+import logo_1 from "../assets/logo.png"
 
 /* ─────────────────────────────────────
    Constants & helpers
@@ -177,19 +178,28 @@ function Panel({ mode }: { mode: "login" | "register" }) {
       {/* Logo mark */}
       <div
         style={{
-          width: 80,
-          height: 80,
-          borderRadius: 24,
-          background: "rgba(255,255,255,0.12)",
-          border: "1.5px solid rgba(255,255,255,0.2)",
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          background: "rgba(255,255,255,0.15)",
+          border: "1.5px solid rgba(255,255,255,0.25)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          marginBottom: 32,
+          flexShrink: 0,
           backdropFilter: "blur(8px)",
+          overflow: "hidden",
         }}
       >
-        {paw}
+        <img
+          src={logo_1}
+          alt="Max Pets & Aquarium Logo"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+        />
       </div>
 
       <h1
@@ -310,24 +320,28 @@ export function LoginPage() {
         >
           <div
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: 14,
-              background: "rgba(255,255,255,0.12)",
-              border: "1.5px solid rgba(255,255,255,0.2)",
+              width: 38,
+              height: 38,
+              borderRadius: 12,
+              background: "rgba(255,255,255,0.15)",
+              border: "1.5px solid rgba(255,255,255,0.25)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
+              backdropFilter: "blur(8px)",
+              overflow: "hidden",
             }}
           >
-            <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
-              <ellipse cx="32" cy="42" rx="14" ry="11" fill="rgba(255,255,255,0.3)" />
-              <ellipse cx="15" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
-              <ellipse cx="49" cy="28" rx="7" ry="9" fill="rgba(255,255,255,0.25)" />
-              <ellipse cx="22" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
-              <ellipse cx="42" cy="18" rx="5" ry="7" fill="rgba(255,255,255,0.2)" />
-            </svg>
+            <img
+              src={logo_1}
+              alt="Max Pets & Aquarium Logo"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
           </div>
           <div>
             <div style={{ color: "#fff", fontWeight: 900, fontSize: 18, letterSpacing: "-0.3px" }}>

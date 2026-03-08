@@ -1,17 +1,3 @@
-/**
- * Dashboard.tsx
- *
- * Pet Management Admin Dashboard
- * Row 1 : Stats cards — Today Revenue, Month Revenue, Total Revenue,
- *          Total Profit, Orders Today, Low Stock Alert
- * Row 2 : Revenue line chart (with date range filter) + Order Status donut
- * Row 3 : Recent Orders table + Top Products bar chart
- * Row 4 : Low Stock table + Payment Status summary
- *
- * Teal + white color scheme · DM Sans + DM Mono · Tailwind CSS
- * All data from real API via dashboard.api.ts
- */
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   getDashboardStats,
@@ -30,6 +16,17 @@ import {
   type PaymentSummaryData,
 } from "../apis/dashboard";
 
+function useIsMobile(breakpoint = 768) {
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false
+  );
+  useEffect(() => {
+    const handler = () => setMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, [breakpoint]);
+  return mobile;
+}
 /* ─────────────────────────────────────────────────────────────
    HELPERS
 ───────────────────────────────────────────────────────────── */
@@ -872,6 +869,7 @@ const PaymentSummaryCard: React.FC<{ data: PaymentSummaryData | null; loading: b
 ───────────────────────────────────────────────────────────── */
 
 const Dashboard: React.FC = () => {
+  const isMobile = useIsMobile();
   // Data state
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [chartData, setChartData] = useState<RevenueChartPoint[]>([]);
@@ -986,7 +984,11 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50/30 via-white to-teal-50/20"
-      style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      style={{
+        fontFamily: "'DM Sans', sans-serif",
+        padding: isMobile ? "84px 14px 24px" : "24px",
+      }}
+    >
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 
       {/* ── Page Header ── */}
@@ -1070,7 +1072,7 @@ const Dashboard: React.FC = () => {
           to   { opacity:1; transform:translateY(0); }
         }
       `}</style>
-    </div>
+    </div >
   );
 };
 

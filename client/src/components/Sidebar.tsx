@@ -1,6 +1,6 @@
 import { useState, useEffect, type JSX } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAppDispatch } from "../store/hooks";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout as logoutAction } from "../store/authSlice";
 import { logout as logoutApi } from "../apis/auth";
 import logo_1 from "../assets/logo.png";
@@ -16,9 +16,6 @@ interface NavItem {
 interface SidebarProps {
   activePage: string;
   onNavigate: (page: string) => void;
-  userName?: string;
-  userRole?: string;
-  userAvatar?: string;
 }
 
 /* ──────────────────────────────────────
@@ -147,9 +144,8 @@ const navItems: NavItem[] = [
 export default function Sidebar({
   activePage,
   onNavigate,
-  userName = "Admin User",
-  userRole = "Administrator",
 }: SidebarProps) {
+  const user = useAppSelector((state) => state.auth.user);
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -157,6 +153,18 @@ export default function Sidebar({
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [loggingOut, setLoggingOut] = useState(false);
+
+
+  const userName = user?.name || "Admin User";
+  const userRole = user?.role || "staff";
+  const userAvatar = user?.avatar?.url || "";
+
+  const roleLabel =
+    userRole === "owner"
+      ? "Owner"
+      : userRole === "admin"
+        ? "Administrator"
+        : "Staff";
 
   useEffect(() => {
     const check = () => {
@@ -531,9 +539,22 @@ export default function Sidebar({
               color: "#fff",
               fontFamily: "'DM Sans', sans-serif",
               letterSpacing: "0.5px",
+              overflow: "hidden",
             }}
           >
-            {initials}
+            {userAvatar ? (
+              <img
+                src={userAvatar}
+                alt={userName}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+            ) : (
+              initials
+            )}
           </div>
 
           {/* Name + role */}
@@ -562,7 +583,7 @@ export default function Sidebar({
                   textOverflow: "ellipsis",
                 }}
               >
-                {userRole}
+                {roleLabel}
               </div>
             </div>
           )}
