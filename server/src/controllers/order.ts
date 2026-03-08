@@ -82,11 +82,20 @@ export const orderController = {
     const session = await mongoose.startSession();
 
     try {
-      const { customer = null, items, discount = 0, paymentMethod } = req.body as {
+      const {
+        customer = null,
+        items,
+        discount = 0,
+        paymentMethod = "cash",
+        paymentStatus = "paid",
+        orderStatus = "delivered",
+      } = req.body as {
         customer?: any;
         items?: CreateOrderItemInput[];
         discount?: number;
         paymentMethod?: string;
+        paymentStatus?: string;
+        orderStatus?: string;
       };
 
       if (!Array.isArray(items) || items.length === 0) {
@@ -136,6 +145,21 @@ export const orderController = {
           const sellMode: SellMode = variant.sellMode;
           const priceUnit: PriceUnit = variant.priceUnit;
           const unitPrice: number = Number(variant.price?.selling ?? 0);
+          const allowedPaymentMethods = ["cash", "card", "online", "other"];
+          const allowedPaymentStatuses = ["pending", "paid", "partial", "refunded"];
+          const allowedOrderStatuses = ["pending", "confirmed", "ready", "delivered", "cancelled"];
+
+          if (!allowedPaymentMethods.includes(paymentMethod)) {
+            return sendError(res, 400, "Invalid payment method");
+          }
+
+          if (!allowedPaymentStatuses.includes(paymentStatus)) {
+            return sendError(res, 400, "Invalid payment status");
+          }
+
+          if (!allowedOrderStatuses.includes(orderStatus)) {
+            return sendError(res, 400, "Invalid order status");
+          }
 
           if (!isValidBaseUnit(unit) || !isValidPriceUnit(priceUnit)) {
             throw new Error("INVALID_VARIANT_UNITS");
@@ -199,14 +223,16 @@ export const orderController = {
         const createdArr = await Order.create(
           [
             {
-              orderNumber, // ✅ atomic, human-readable, unique
+              orderNumber,
               customer,
               items: processedItems,
               totalAmount,
               discount: disc,
               finalAmount,
               paymentMethod,
-            },
+              paymentStatus,
+              orderStatus,
+            }
           ],
           { session }
         );
@@ -340,9 +366,17 @@ export const orderController = {
         ];
       }
 
-      if (typeof orderStatus === "string" && orderStatus) filter.orderStatus = orderStatus;
-      if (typeof paymentStatus === "string" && paymentStatus) filter.paymentStatus = paymentStatus;
-      if (typeof phone === "string" && phone) filter["customer.phone"] = phone;
+      if (typeof orderStatus === "string" && orderStatus) {
+        filter.orderStatus = orderStatus;
+      }
+
+      if (typeof paymentStatus === "string" && paymentStatus) {
+        filter.paymentStatus = paymentStatus;
+      }
+
+      if (typeof phone === "string" && phone) {
+        filter["customer.phone"] = phone;
+      }
 
       if (typeof date === "string" && date) {
         const start = new Date(`${date}T00:00:00.000Z`);
@@ -355,22 +389,74 @@ export const orderController = {
         filter.createdAt = { $gte: start, $lte: end };
       } else if (typeof from === "string" || typeof to === "string") {
         filter.createdAt = {};
+
         if (typeof from === "string" && from) {
           const d = new Date(from);
-          if (isNaN(d.getTime())) return sendError(res, 400, "Invalid from date");
+          if (isNaN(d.getTime())) {
+            return sendError(res, 400, "Invalid from date");
+          }
           filter.createdAt.$gte = d;
         }
+
         if (typeof to === "string" && to) {
           const d = new Date(to);
-          if (isNaN(d.getTime())) return sendError(res, 400, "Invalid to date");
+          if (isNaN(d.getTime())) {
+            return sendError(res, 400, "Invalid to date");
+          }
           filter.createdAt.$lte = d;
         }
       }
 
-      const [orders, total] = await Promise.all([
+      const [
+        orders,
+        total,
+        totalOrders,
+        pendingOrders,
+        deliveredOrders,
+        paidOrders,
+        topProductsAgg,
+      ] = await Promise.all([
         Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSize).lean(),
         Order.countDocuments(filter),
+
+        // ✅ Global stats — NO FILTER
+        Order.countDocuments({}),
+        Order.countDocuments({ orderStatus: "pending" }),
+        Order.countDocuments({ orderStatus: "delivered" }),
+        Order.countDocuments({ paymentStatus: "paid" }),
+
+        // ✅ Global top 5 performing products — NO FILTER
+        Order.aggregate([
+          { $unwind: "$items" },
+          {
+            $group: {
+              _id: "$items.product",
+              totalSoldQty: { $sum: "$items.quantity" },
+            },
+          },
+          { $sort: { totalSoldQty: -1, totalRevenue: -1 } },
+          { $limit: 5 },
+        ]),
       ]);
+
+      const topProductIds = topProductsAgg.map((item: any) => item._id);
+
+      const productDocs = await Product.find({ _id: { $in: topProductIds } })
+        .select("_id name")
+        .lean();
+
+      const productNameMap = new Map(
+        productDocs.map((p: any) => [String(p._id), p.name])
+      );
+
+      const topPerformingProducts = topProductsAgg.map((item: any) => ({
+        productId: item._id,
+        name: productNameMap.get(String(item._id)) || "Unknown Product",
+        totalSoldQty: item.totalSoldQty,
+      }));
+
+      const paidPercentage =
+        totalOrders > 0 ? Number(((paidOrders / totalOrders) * 100).toFixed(2)) : 0;
 
       return sendSuccess(res, 200, "Orders fetched successfully", {
         orders,
@@ -379,6 +465,13 @@ export const orderController = {
           page: pageNumber,
           limit: pageSize,
           totalPages: Math.ceil(total / pageSize),
+        },
+        statistics: {
+          totalOrders,
+          pendingOrders,
+          deliveredOrders,
+          paidPercentage,
+          topPerformingProducts,
         },
       });
     } catch (error: any) {

@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth";
 import categoryRoutes from "./routes/category";
 import productRoutes from "./routes/product";
 import orderRoutes from "./routes/order";
+import dashboardRoutes from "./routes/dashboard";
 
 const app = express();
 
@@ -32,6 +33,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use(globalErrorHandler);
 

@@ -8,11 +8,14 @@ export interface IUser extends Document {
   password: string;
   role: UserRole;
   phone?: string;
-  avatar?: string;
+  avatar: {
+    url: string | null;
+    public_id: string | null;
+  },
   isActive: boolean;
-  otp?: string;
-  otpExpiry?: Date;
   refreshToken: string | null;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiry?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

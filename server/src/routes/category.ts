@@ -4,7 +4,8 @@ import { authGuard } from "../middlewares/auth.guard";
 
 const router = Router();
 
-// authGuard.authenticate
+router.use(authGuard.authenticate);
+router.use(authGuard.ownerOnly);
 
 // Public
 router.get("/", categoryController.getAll);
@@ -12,19 +13,16 @@ router.get("/", categoryController.getAll);
 // Owner only
 router.post(
   "/",
-  // authGuard.ownerOnly,
   categoryController.create
 );
 
 router.put(
   "/:id",
-  // authGuard.ownerOnly,
   categoryController.update
 );
 
 router.patch(
   "/:id/toggle",
-  // authGuard.ownerOnly,
   categoryController.toggleActive
 );
 

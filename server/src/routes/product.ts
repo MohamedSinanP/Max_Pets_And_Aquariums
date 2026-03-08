@@ -2,8 +2,12 @@ import { Router } from "express";
 import { productController } from "../controllers/product";
 import { upload } from "../middlewares/upload";
 import { asyncHandler } from "../middlewares/asyncHandler";
+import { authGuard } from "../middlewares/auth.guard";
 
 const router = Router();
+
+router.use(authGuard.authenticate);
+router.use(authGuard.ownerOnly);
 
 router.post("/", upload.any(), asyncHandler(productController.create));
 

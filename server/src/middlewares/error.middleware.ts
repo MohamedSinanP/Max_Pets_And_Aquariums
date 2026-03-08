@@ -3,17 +3,17 @@ import { STATUS_CODES } from "../constants/common";
 
 export const globalErrorHandler = (
   err: any,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   console.error("❌ Error:", err);
 
-  const statusCode =
-    err.statusCode || STATUS_CODES.INTERNAL_SERVER_ERROR;
+  const statusCode = err.statusCode || STATUS_CODES.INTERNAL_SERVER_ERROR;
 
   res.status(statusCode).json({
     success: false,
     message: err.message || "Internal Server Error",
+    code: err.code || "INTERNAL_SERVER_ERROR",
   });
 };

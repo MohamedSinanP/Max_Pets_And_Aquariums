@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { orderController } from "../controllers/order";
 import { asyncHandler } from "../middlewares/asyncHandler";
+import { authGuard } from "../middlewares/auth.guard";
 
 const router = Router();
 
+router.use(authGuard.authenticate);
+router.use(authGuard.ownerOnly);
 // Create order
 router.post("/", asyncHandler(orderController.create));
 

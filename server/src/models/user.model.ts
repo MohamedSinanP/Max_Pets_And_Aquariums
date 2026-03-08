@@ -37,8 +37,8 @@ const UserSchema = new Schema<IUser>(
     },
 
     avatar: {
-      type: String,
-      default: null,
+      url: { type: String, default: null },
+      public_id: { type: String, default: null },
     },
 
     isActive: {
@@ -46,19 +46,20 @@ const UserSchema = new Schema<IUser>(
       default: true,
     },
 
-    otp: {
+    refreshToken: {
       type: String,
       select: false,
       default: null,
     },
 
-    otpExpiry: {
-      type: Date,
+    resetPasswordToken: {
+      type: String,
       select: false,
       default: null,
     },
-    refreshToken: {
-      type: String,
+
+    resetPasswordExpiry: {
+      type: Date,
       select: false,
       default: null,
     },
