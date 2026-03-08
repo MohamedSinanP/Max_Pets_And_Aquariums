@@ -11,6 +11,6 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   phone: string | null;
-  avatar: UserAvatar | nu;
+  avatar: UserAvatar | null;
   isActive: boolean;
 }

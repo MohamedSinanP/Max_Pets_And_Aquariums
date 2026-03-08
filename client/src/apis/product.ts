@@ -1,4 +1,4 @@
-import type { ApiSuccess, BaseUnit, CreateProductPayload, GetProductsParams, PriceUnit, SellMode, UpdateProductPayload } from "../types/product";
+import type { ApiSuccess, BaseUnit, CreateProductPayload, GetProductsParams, PriceUnit, Product, SellMode, UpdateProductPayload } from "../types/product";
 import api from "./api";
 
 /* =========================
@@ -112,7 +112,7 @@ export const buildUpdateFormData = (
 ========================= */
 
 export const getProducts = async (params?: GetProductsParams) => {
-  const res = await api.get<ApiSuccess<Prodcut[]>>("/products", {
+  const res = await api.get<ApiSuccess<Product[]>>("/products", {
     params: toQueryParams(params),
   });
   return res.data;
