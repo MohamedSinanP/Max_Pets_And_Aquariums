@@ -419,27 +419,30 @@ export const orderController = {
         Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSize).lean(),
         Order.countDocuments(filter),
 
-        // ✅ Global stats — NO FILTER
+        // Global stats — NO FILTER
         Order.countDocuments({}),
         Order.countDocuments({ orderStatus: "pending" }),
         Order.countDocuments({ orderStatus: "delivered" }),
         Order.countDocuments({ paymentStatus: "paid" }),
 
-        // ✅ Global top 5 performing products — NO FILTER
+        // Global top 5 performing products — grouped by product + unit
         Order.aggregate([
           { $unwind: "$items" },
           {
             $group: {
-              _id: "$items.product",
+              _id: {
+                product: "$items.product",
+                unit: "$items.unit",
+              },
               totalSoldQty: { $sum: "$items.quantity" },
             },
           },
-          { $sort: { totalSoldQty: -1, totalRevenue: -1 } },
+          { $sort: { totalSoldQty: -1 } },
           { $limit: 5 },
         ]),
       ]);
 
-      const topProductIds = topProductsAgg.map((item: any) => item._id);
+      const topProductIds = topProductsAgg.map((item: any) => item._id.product);
 
       const productDocs = await Product.find({ _id: { $in: topProductIds } })
         .select("_id name")
@@ -450,9 +453,10 @@ export const orderController = {
       );
 
       const topPerformingProducts = topProductsAgg.map((item: any) => ({
-        productId: item._id,
-        name: productNameMap.get(String(item._id)) || "Unknown Product",
+        productId: item._id.product,
+        name: productNameMap.get(String(item._id.product)) || "Unknown Product",
         totalSoldQty: item.totalSoldQty,
+        baseUnit: item._id.unit,
       }));
 
       const paidPercentage =
