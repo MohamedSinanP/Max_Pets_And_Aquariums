@@ -1,16 +1,3 @@
-/**
- * ProductsPage.tsx
- *
- * Improvements:
- * 1. ✅ Mobile hamburger overlap fix — pt: 84px on mobile (same as Orders/Category)
- * 2. ✅ Mobile product card view — replaces DataTable on small screens with rich cards
- *    showing image placeholder, type badge, stock indicator, price, status pill,
- *    and 3 action buttons (View / Edit / Delete)
- * 3. ✅ Responsive filter bar — stacks to full-width on mobile
- * 4. ✅ Responsive header — stacks on mobile with full-width "Add Product" button
- * 5. ✅ Mobile pagination — simple Prev / Next with page indicator
- */
-
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import DataTable, { type Column, type TableAction } from "../components/DataTable";
 import {
@@ -31,6 +18,7 @@ import {
   type CreateProductPayload,
   type UpdateProductPayload,
 } from "../types/product";
+import { formatQuantityForUser } from "../utils/productUnits";
 
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE HOOK
@@ -165,8 +153,23 @@ interface ProductRow {
   variants: number;
   minPrice: number;
   stock: number;
+  stockLabel: string;
   status: boolean;
   _raw: Product;
+}
+
+
+function getProductStockLabel(product: Product): string {
+  const units = [...new Set(product.variants.map((v) => v.quantity.baseUnit))];
+
+  if (units.length === 1) {
+    const unit = units[0];
+    const total = product.variants.reduce((acc, v) => acc + v.quantity.inStock, 0);
+    return formatQuantityForUser(total, unit);
+  }
+
+  const total = product.variants.reduce((acc, v) => acc + v.quantity.inStock, 0);
+  return `${total}`;
 }
 
 const toRow = (p: Product): ProductRow => ({
@@ -177,6 +180,7 @@ const toRow = (p: Product): ProductRow => ({
   variants: p.variants.length,
   minPrice: p.variants.length ? Math.min(...p.variants.map(v => v.price.selling)) : 0,
   stock: p.variants.reduce((acc, v) => acc + v.quantity.inStock, 0),
+  stockLabel: getProductStockLabel(p),
   status: p.isActive,
   _raw: p,
 });
@@ -305,7 +309,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ row, onView, onEdit, onDelete
                 margin: 0, fontWeight: 900, fontSize: 18, lineHeight: 1,
                 color: stockColor.color, fontFamily: "'DM Mono', monospace",
               }}>
-                {row.stock}
+                {row.stockLabel}
               </p>
               <span style={{
                 fontSize: 10, fontWeight: 700, padding: "2px 6px",
@@ -463,7 +467,7 @@ const columns: Column<ProductRow>[] = [
     key: "stock", label: "Stock", align: "center", sortable: true,
     render: (row) => (
       <span className={`font-bold text-sm ${row.stock < 10 ? "text-red-600" : row.stock < 30 ? "text-yellow-600" : "text-green-600"}`}>
-        {row.stock}
+        {row.stockLabel}
       </span>
     ),
   },
@@ -501,7 +505,7 @@ export default function ProductsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const LIMIT = 8;
+  const LIMIT = 10;
   const totalPages = Math.max(1, Math.ceil(totalRecords / LIMIT));
 
   /* ── Search debounce ── */
@@ -596,6 +600,7 @@ export default function ProductsPage() {
       showToast(err?.response?.data?.message ?? "Failed to delete product", "error");
     } finally { setActionLoading(false); }
   };
+
 
   /* ── Desktop table actions ── */
   const tableActions: TableAction<ProductRow>[] = [

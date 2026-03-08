@@ -13,6 +13,12 @@ import {
   type PriceUnit,
   type ProductType,
 } from "../types/product"
+import {
+  storedToDisplayQty,
+  displayToStoredQty,
+  getDisplayUnit,
+  formatQuantityForUser,
+} from "../utils/productUnits";
 
 /* ════════════════════════════════════════════════════════════
    HELPERS
@@ -420,6 +426,10 @@ function VariantEditor({
   const isLoose = variant.sellMode === "loose";
   const hasErrors = Object.values(errors).some(Boolean);
 
+  const stockDisplayValue =
+    variant.quantity.inStock === 0
+      ? ""
+      : storedToDisplayQty(variant.quantity.inStock, variant.quantity.baseUnit);
   return (
     <div className={`border-[1.5px] rounded-2xl p-4 mb-3.5 transition-colors ${hasErrors ? "border-red-200 bg-red-50/20" : "border-teal-200 bg-teal-50/60"
       }`}>
@@ -506,7 +516,7 @@ function VariantEditor({
               onChange={(v) => handleBaseUnitChange(v as BaseUnit)}
               hasError={!!errors.baseUnit}
               options={[
-                { label: "Milligrams (mg) → price per kg", value: "mg" },
+                { label: "Grams (g) → stored as mg, price per kg", value: "mg" },
                 { label: "Millilitres (ml) → price per liter", value: "ml" },
               ]}
             />
@@ -545,15 +555,29 @@ function VariantEditor({
       </div>
 
       {/* Stock — no spinner arrows */}
-      <FormField label={`In Stock (${variant.quantity.baseUnit})`} required error={errors.inStock}>
+      <FormField
+        label={`In Stock (${getDisplayUnit(variant.quantity.baseUnit)})`}
+        required
+        error={errors.inStock}
+      >
         <input
           className={errors.inStock ? inputErrCls : inputCls}
           type="number"
-          inputMode="numeric"
+          inputMode="decimal"
+          step="0.001"
           placeholder="0"
-          value={variant.quantity.inStock === 0 ? "" : variant.quantity.inStock}
+          value={stockDisplayValue}
           onChange={(e) => {
-            update({ quantity: { ...variant.quantity, inStock: e.target.value === "" ? 0 : +e.target.value } });
+            const raw = e.target.value;
+            const parsed = raw === "" ? 0 : Number(raw);
+
+            update({
+              quantity: {
+                ...variant.quantity,
+                inStock: raw === "" ? 0 : displayToStoredQty(parsed, variant.quantity.baseUnit),
+              },
+            });
+
             onClearError?.("inStock");
           }}
         />
@@ -564,7 +588,9 @@ function VariantEditor({
         <span className="text-teal-400">ℹ</span>
         {variant.sellMode === "packaged"
           ? "Packaged: prices are per piece, stock counted in pieces"
-          : `Loose: stock stored in ${variant.quantity.baseUnit}, prices shown per ${variant.priceUnit}`}
+          : variant.quantity.baseUnit === "mg"
+            ? "Loose: enter stock in grams, it is stored as mg internally, and price is per kg"
+            : `Loose: stock stored in ${variant.quantity.baseUnit}, prices shown per ${variant.priceUnit}`}
       </div>
 
       {/* Images */}
@@ -900,8 +926,8 @@ export function ProductFormModal({
                 <SectionTitle>Variants</SectionTitle>
                 <div className="bg-teal-50 border-[1.5px] border-teal-100 rounded-xl px-4 py-3 text-teal-700 text-xs font-semibold mb-3.5 space-y-1">
                   <p><span className="font-extrabold">Packaged</span> — sold by piece. Stock in pcs, price per pcs.</p>
-                  <p><span className="font-extrabold">Loose (mg)</span> — sold by weight. Stock in mg, price per kg.</p>
-                  <p><span className="font-extrabold">Loose (ml)</span> — sold by volume. Stock in ml, price per liter.</p>
+                  <p><span className="font-extrabold">Loose (g)</span> — user enters grams, system stores mg, price is per kg.</p>
+                  <p><span className="font-extrabold">Loose (ml)</span> — stock in ml, price per liter.</p>
                 </div>
 
                 {variants.map((v, i) => (
@@ -1056,7 +1082,9 @@ export function ViewProductModal({ open, onClose, product }: { open: boolean; on
                 </div>
                 <div>
                   <div className="text-teal-400 text-[11px] font-bold uppercase">In Stock</div>
-                  <div className="text-teal-900 font-bold">{v.quantity.inStock} {v.quantity.baseUnit}</div>
+                  <div className="text-teal-900 font-bold">
+                    {formatQuantityForUser(v.quantity.inStock, v.quantity.baseUnit)}
+                  </div>
                 </div>
               </div>
               {v.sku && <div className="text-[11px] text-teal-400 font-mono mb-2">SKU: {v.sku}</div>}

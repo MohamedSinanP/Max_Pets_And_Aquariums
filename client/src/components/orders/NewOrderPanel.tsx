@@ -8,6 +8,7 @@ import { EmptyState, Select, Spinner, TealBtn } from "./OrderUi";
 import { CartItemRow } from "./CartItemRow";
 import { SearchBar } from "../SearchBar";
 import { ProductCard } from "./ProductCard";
+import { formatQuantityForUser } from "../../utils/productUnits";
 
 // ─────────────────────────────────────────────────────────────
 //  PAGINATION
@@ -159,8 +160,11 @@ export const NewOrderPanel: React.FC<NewOrderPanelProps> = ({ onClose, onOrderCr
         .join(" · ") || "Default";
 
     const isLoose = variant.sellMode === "loose";
-    const defaultQty = isLoose ? 1000 : 1;
-
+    const defaultQty = isLoose
+      ? variant.quantity.baseUnit === "mg"
+        ? 1000 // 1 g stored as mg
+        : 1    // 1 ml
+      : 1;
     setCartItems(prev => [
       ...prev,
       {
@@ -466,7 +470,12 @@ export const NewOrderPanel: React.FC<NewOrderPanelProps> = ({ onClose, onOrderCr
                 <div className="p-4 space-y-2">
                   {cartItems.map(item => (
                     <div key={item.key} className="flex justify-between text-sm">
-                      <span className="text-teal-800">{item.productName} <span className="text-teal-400 text-xs">×{item.quantity}</span></span>
+                      <span className="text-teal-800">
+                        {item.productName}{" "}
+                        <span className="text-teal-400 text-xs">
+                          ×{item.sellMode === "loose" ? formatQuantityForUser(item.quantity, item.unit) : item.quantity}
+                        </span>
+                      </span>
                       <span className="font-bold text-teal-700" style={{ fontFamily: "'DM Mono', monospace" }}>₹{item.subtotal.toFixed(2)}</span>
                     </div>
                   ))}

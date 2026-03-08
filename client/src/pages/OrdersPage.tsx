@@ -12,6 +12,8 @@ import { SearchBar } from "../components/SearchBar";
 import { NewOrderPanel, Pagination } from "../components/orders/NewOrderPanel";
 import { UpdateStatusModal } from "../components/orders/UpdateStatusModel";
 import { ViewOrderModal } from "../components/orders/viewOrderModal";
+import type { BaseUnit } from "../types/product";
+import { formatQuantityForUser } from "../utils/productUnits";
 
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE HOOK
@@ -244,7 +246,12 @@ interface OrderStats {
   pendingOrders: number;
   deliveredOrders: number;
   paidPercentage: number;
-  topPerformingProducts: { productId: string; name: string; totalSoldQty: number }[];
+  topPerformingProducts: {
+    productId: string;
+    name: string;
+    totalSoldQty: number;
+    baseUnit: BaseUnit;
+  }[];
 }
 
 interface OrdersTableProps {
@@ -583,12 +590,14 @@ const OrdersPage: React.FC = () => {
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-teal-900 truncate">{item.name}</p>
-                    <p className="text-xs text-teal-400">Product ID: {item.productId}</p>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-3">
-                  <p className="text-sm font-black text-teal-800" style={{ fontFamily: "'DM Mono', monospace" }}>
-                    {item.totalSoldQty}
+                  <p
+                    className="text-sm font-black text-teal-800"
+                    style={{ fontFamily: "'DM Mono', monospace" }}
+                  >
+                    {formatQuantityForUser(item.totalSoldQty, item.baseUnit)}
                   </p>
                   <p className="text-xs text-teal-400">Sold Qty</p>
                 </div>

@@ -78,6 +78,7 @@ export interface TopPerformingProductStat {
   productId: string;
   name: string;
   totalSoldQty: number;
+  baseUnit: BaseUnit;
 }
 
 export interface OrderStatistics {

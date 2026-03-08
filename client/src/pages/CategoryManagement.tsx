@@ -399,7 +399,7 @@ export default function CategoryManagement() {
   const [loading, setLoading] = useState<boolean>(false);
 
   const [page, setPage] = useState<number>(1);
-  const [limit] = useState<number>(8);
+  const [limit] = useState<number>(10);
   const [search, setSearch] = useState<string>("");
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");

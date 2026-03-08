@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { CartItem } from "../../types/order";
 import type { Product, ProductVariant } from "../../types/product";
 import { TealBtn } from "./OrderUi";
+import { formatQuantityForUser } from "../../utils/productUnits";
 
 interface ProductCardProps {
   product: Product;
@@ -58,11 +59,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
             style={{ fontFamily: "'DM Sans', sans-serif" }}
           >
             {activeVariants.map((v, idx) => {
-              const label = Object.entries(v.attributes ?? {})
-                .filter(([, val]) => val)
-                .map(([, val]) => val)
-                .join(" · ") || `Variant ${idx + 1}`;
-              return <option key={v._id} value={idx}>{label} — ₹{v.price.selling}/{v.priceUnit}</option>;
+              const label =
+                Object.entries(v.attributes ?? {})
+                  .filter(([, val]) => val)
+                  .map(([, val]) => val)
+                  .join(" · ") || `Variant ${idx + 1}`;
+
+              const stockLabel = formatQuantityForUser(v.quantity.inStock, v.quantity.baseUnit);
+
+              return (
+                <option key={v._id} value={idx}>
+                  {label} — ₹{v.price.selling}/{v.priceUnit} — {stockLabel}
+                </option>
+              );
             })}
           </select>
         )}
@@ -74,7 +83,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
               <span className="text-teal-400 font-normal text-xs">/{variant.priceUnit}</span>
             </p>
             <p className="text-teal-400 text-xs mt-0.5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-              Stock: {variant.quantity.inStock} {variant.quantity.baseUnit}
+              Stock: {formatQuantityForUser(variant.quantity.inStock, variant.quantity.baseUnit)}
             </p>
           </div>
           {inCart && (
