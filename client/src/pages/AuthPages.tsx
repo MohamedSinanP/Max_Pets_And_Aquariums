@@ -4,7 +4,7 @@ import { login, register } from "../apis/auth";
 import type { LoginPayload, RegisterPayload } from "../apis/auth";
 import { useAppDispatch } from "../store/hooks";
 import { setUser } from "../store/authSlice";
-import logo_1 from "../assets/logo.png"
+import logo_1 from "../assets/logo.jpg"
 
 /* ─────────────────────────────────────
    Constants & helpers

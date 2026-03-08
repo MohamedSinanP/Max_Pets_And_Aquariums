@@ -51,6 +51,7 @@ export interface UpdatePasswordPayload {
 export interface UpdateProfilePayload {
   userId: string;
   name?: string;
+  email: string;
   phone?: string;
   avatarFile?: File | null;
 }
@@ -116,6 +117,10 @@ export const updateProfile = async (payload: UpdateProfilePayload) => {
 
   if (payload.phone !== undefined) {
     formData.append("phone", payload.phone);
+  }
+
+  if (payload.email !== undefined) {
+    formData.append("email", payload.email);
   }
 
   if (payload.avatarFile) {

@@ -3,6 +3,7 @@ import { useAppDispatch } from "../../store/hooks";
 import { clearUser, setHydrated, setUser } from "../../store/authSlice";
 import { getMe } from "../../apis/auth";
 import { useLocation } from "react-router-dom";
+import Loading from "../LoadingSpinner";
 
 interface Props {
   children: ReactNode;
@@ -48,7 +49,7 @@ export default function AuthBootstrap({ children }: Props) {
   }, [dispatch, location.pathname]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading />
   }
 
   return <>{children}</>;

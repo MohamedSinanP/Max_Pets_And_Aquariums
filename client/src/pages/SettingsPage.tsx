@@ -17,6 +17,7 @@ import type { UpdateProfilePayload, UpdatePasswordPayload } from "../apis/auth";
 interface ProfileForm {
   name: string;
   phone: string;
+  email: string;
   avatar: string; // preview URL or existing URL
   avatarFile: File | null; // actual file to upload
 }
@@ -391,7 +392,7 @@ interface ProfileSectionProps {
   initialEmail: string;
   initialPhone: string;
   initialAvatar: string;
-  onProfileUpdated: (name: string, avatar: string) => void;
+  onProfileUpdated: (name: string, email: string, avatar: string) => void;
 }
 
 const ProfileSection: React.FC<ProfileSectionProps> = ({
@@ -404,6 +405,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
 }) => {
   const [form, setForm] = useState<ProfileForm>({
     name: initialName,
+    email: initialEmail,
     phone: initialPhone,
     avatar: initialAvatar,
     avatarFile: null,
@@ -416,11 +418,12 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   useEffect(() => {
     setForm({
       name: initialName,
+      email: initialEmail,
       phone: initialPhone,
       avatar: initialAvatar,
       avatarFile: null,
     });
-  }, [initialName, initialPhone, initialAvatar]);
+  }, [initialName, initialEmail, initialPhone, initialAvatar]);
 
   const set = (key: keyof ProfileForm) => (val: string) => {
     setForm((p) => ({ ...p, [key]: val }));
@@ -437,10 +440,20 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
 
   const validate = (): boolean => {
     const e: FieldError = {};
+
     if (!form.name.trim()) e.name = "Name is required";
     else if (form.name.trim().length < 2) e.name = "Name must be at least 2 characters";
-    if (form.phone && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone))
+
+    if (!form.email.trim()) {
+      e.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = "Enter a valid email address";
+    }
+
+    if (form.phone && !/^\+?[\d\s\-()]{7,15}$/.test(form.phone)) {
       e.phone = "Enter a valid phone number";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -454,6 +467,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       const payload: UpdateProfilePayload = {
         userId,
         name: form.name.trim(),
+        email: form.email.trim(),
         phone: form.phone || undefined,
         avatarFile: form.avatarFile,
       };
@@ -473,7 +487,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         avatarFile: null,
       }));
 
-      onProfileUpdated(form.name.trim(), updatedAvatar);
+      onProfileUpdated(form.name.trim(), form.email.trim(), updatedAvatar);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
       setAlert({
@@ -525,10 +539,11 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
             label="Email Address"
             id="profile-email"
             type="email"
-            value={initialEmail}
-            onChange={() => { }}
-            disabled
-            hint="Email cannot be changed"
+            value={form.email}
+            onChange={set("email")}
+            placeholder="you@example.com"
+            error={errors.email}
+            autoComplete="email"
             icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -891,9 +906,9 @@ const SettingsPage: React.FC = () => {
     fetchMe();
   }, []);
 
-  const handleProfileUpdated = (name: string, avatar: string) => {
+  const handleProfileUpdated = (name: string, email: string, avatar: string) => {
     setUser((prev) =>
-      prev ? { ...prev, name, avatar } : prev
+      prev ? { ...prev, name, email, avatar } : prev
     );
   };
 

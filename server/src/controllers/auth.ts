@@ -333,7 +333,7 @@ export const authController = {
   // UPDATE PROFILE
   // ─────────────────────────────────────────
   updateProfile: async (req: Request, res: Response) => {
-    const { userId, name, phone } = req.body;
+    const { userId, name, phone, email } = req.body;
 
     if (!userId) {
       const error: any = new Error("User ID is required");
@@ -343,6 +343,12 @@ export const authController = {
 
     if (name !== undefined && name.trim().length < 2) {
       const error: any = new Error("Name must be at least 2 characters");
+      error.statusCode = STATUS_CODES.BAD_REQUEST;
+      throw error;
+    }
+
+    if (email !== undefined && !validateEmail(email)) {
+      const error: any = new Error("Valid Gmail address is required");
       error.statusCode = STATUS_CODES.BAD_REQUEST;
       throw error;
     }
@@ -361,6 +367,10 @@ export const authController = {
 
     if (phone !== undefined) {
       user.phone = phone;
+    }
+
+    if (email !== undefined) {
+      user.email = email;
     }
 
     if (req.file) {
