@@ -9,3 +9,18 @@ body {
   color: rgb(0, 0, 0);
   font-family: "Poppins";
 }
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  30% {
+    transform: translateX(0);
+  }
+  70% {
+    transform: translateX(-40%);
+  }
+  100% {
+    transform: translateX(-40%);
+  }
+}

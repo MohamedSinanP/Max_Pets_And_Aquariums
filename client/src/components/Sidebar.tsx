@@ -331,16 +331,29 @@ export default function Sidebar({
               <div style={{ minWidth: 0, overflow: "hidden" }}>
                 <div
                   style={{
-                    color: "#fff",
-                    fontWeight: 900,
-                    fontSize: 15,
-                    fontFamily: "'DM Sans', sans-serif",
-                    letterSpacing: "-0.3px",
-                    lineHeight: 1.1,
-                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    position: "relative",
                   }}
                 >
-                  Max Pets
+                  <div
+                    className="marquee-text"
+                    style={{
+                      color: "#fff",
+                      fontWeight: 900,
+                      fontSize: 15,
+                      fontFamily: "'DM Sans', sans-serif",
+                      letterSpacing: "-0.3px",
+                      lineHeight: 1.1,
+                      whiteSpace: "nowrap",
+                      display: "inline-block",
+                      animation: "marquee 6s linear infinite",
+                      animationPlayState: "paused",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.animationPlayState = "running")}
+                    onMouseLeave={e => (e.currentTarget.style.animationPlayState = "paused")}
+                  >
+                    Max Pets & Aquariums
+                  </div>
                 </div>
                 <div
                   style={{
