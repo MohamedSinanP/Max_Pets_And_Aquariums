@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f766e"/>
+      <stop offset="100%" style="stop-color:#0d9488"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="200" height="200" rx="16" fill="url(#bg)"/>
+  <rect width="200" height="200" rx="16" fill="url(#shine)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.07" stroke="#ffffff" stroke-width="0.5">
+    <line x1="0" y1="40" x2="200" y2="40"/>
+    <line x1="0" y1="80" x2="200" y2="80"/>
+    <line x1="0" y1="120" x2="200" y2="120"/>
+    <line x1="0" y1="160" x2="200" y2="160"/>
+    <line x1="40" y1="0" x2="40" y2="200"/>
+    <line x1="80" y1="0" x2="80" y2="200"/>
+    <line x1="120" y1="0" x2="120" y2="200"/>
+    <line x1="160" y1="0" x2="160" y2="200"/>
+  </g>
+
+  <!-- Bowl icon -->
+  <!-- Bowl base -->
+  <path d="M62 105 Q62 138 100 138 Q138 138 138 105 Z" fill="#ffffff" opacity="0.92"/>
+  <!-- Bowl rim -->
+  <rect x="60" y="98" width="80" height="10" rx="5" fill="#ffffff" opacity="0.92"/>
+  <!-- Steam lines -->
+  <path d="M85 88 Q88 80 85 72" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M100 88 Q103 78 100 68" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+  <path d="M115 88 Q118 80 115 72" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Label -->
+  <text x="100" y="158" font-family="'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="600" fill="#ffffff" opacity="0.75" text-anchor="middle" letter-spacing="2">FOOD</text>
+</svg>

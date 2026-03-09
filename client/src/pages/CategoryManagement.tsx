@@ -589,10 +589,10 @@ export default function CategoryManagement() {
   ];
 
   const statCards = [
-    { label: "Total (server)", value: total, icon: "◈", color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
-    { label: "Active (page)", value: stats.active, icon: "●", color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
-    { label: "Living (page)", value: stats.living, icon: "🌱", color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
-    { label: "Roots (page)", value: stats.roots, icon: "⬡", color: "#0891b2", bg: "#f0f9ff", border: "#bae6fd" },
+    { label: "Total", value: total, icon: "◈", color: "#0d9488", bg: "#f0fdfa", border: "#99f6e4" },
+    { label: "Active", value: stats.active, icon: "●", color: "#10b981", bg: "#f0fdf4", border: "#bbf7d0" },
+    { label: "Living", value: stats.living, icon: "🌱", color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
+    { label: "Roots", value: stats.roots, icon: "⬡", color: "#0891b2", bg: "#f0f9ff", border: "#bae6fd" },
   ];
 
   return (

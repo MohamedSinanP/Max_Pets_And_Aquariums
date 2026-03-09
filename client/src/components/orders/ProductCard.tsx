@@ -3,12 +3,14 @@ import type { CartItem } from "../../types/order";
 import type { Product, ProductVariant } from "../../types/product";
 import { TealBtn } from "./OrderUi";
 import { formatQuantityForUser } from "../../utils/productUnits";
+import { getProductImage } from "../../utils/productImage";
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product, variant: ProductVariant) => void;
   cartItems: CartItem[];
 }
+
 export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, cartItems }) => {
   const [selectedVariantIdx, setSelectedVariantIdx] = useState<number>(0);
   const activeVariants = product.variants.filter(v => v.isActive);
@@ -20,18 +22,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
   );
   const outOfStock = variant.quantity.inStock <= 0;
 
+  // Resolve image: prefer selected variant's image, fallback to type-based SVG
+  const productImage = getProductImage(product, variant._id);
+
   return (
     <div className="bg-white rounded-2xl border-2 border-teal-50 hover:border-teal-200 transition-all duration-200 overflow-hidden hover:shadow-lg hover:shadow-teal-50 group">
       <div className="h-28 bg-gradient-to-br from-teal-50 to-teal-100/50 flex items-center justify-center relative">
-        {product.variants[0]?.images?.[0]?.url ? (
-          <img src={product.variants[0].images[0].url} alt={product.name}
-            className="h-full w-full object-cover" />
-        ) : (
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#99d6d0" strokeWidth="1.2">
-            <rect x="2" y="3" width="20" height="14" rx="2" />
-            <path d="M8 21h8M12 17v4" strokeLinecap="round" />
-          </svg>
-        )}
+        <img
+          src={productImage}
+          alt={product.name}
+          className="h-full w-full object-cover"
+        />
         {outOfStock && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
             <span className="text-red-400 text-xs font-bold px-2 py-1 bg-red-50 rounded-lg border border-red-100">Out of Stock</span>
