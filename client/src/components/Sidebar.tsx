@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { logout as logoutAction } from "../store/authSlice";
 import { logout as logoutApi } from "../apis/auth";
-import logo_1 from "../assets/logo.jpg";
+import logo_1 from "../assets/logo.png";
 
 interface NavItem {
   id: string;
